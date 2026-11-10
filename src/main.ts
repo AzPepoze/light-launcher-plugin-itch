@@ -22,6 +22,7 @@ import type {
   SearchParams,
   SearchResult,
 } from '@light-launcher/plugin-sdk/types';
+import { readItchApiKey } from './library/itch-key';
 import type { HostServices } from './host';
 import { writeLog } from './logger';
 import { createItchProvider, type ItchProvider } from './providers/itch';
@@ -69,6 +70,14 @@ async function checkUpdate({ game }: CheckUpdateParams): Promise<CheckUpdateResu
   return { update: await requireProvider().checkUpdate(game) };
 }
 
+/** Copies the API key from the itch desktop app. Stores it only when the app has one. */
+async function importDesktopKey(): Promise<{ found: boolean }> {
+  const apiKey = readItchApiKey();
+  if (!apiKey) return { found: false };
+  await requireProvider().importCredential(apiKey);
+  return { found: true };
+}
+
 const handlers: PluginHandlers = {
   initialize,
   'source.authStatus': () => requireProvider().authStatus(),
@@ -83,9 +92,14 @@ const handlers: PluginHandlers = {
   'source.sync': () => requireProvider().sync(),
 };
 
+/** Plugin methods beyond the SDK's typed host methods. Listed under contributes.commands. */
+const pluginHandlers = {
+  'itch.importDesktopKey': importDesktopKey,
+};
+
 async function main(): Promise<void> {
   writeLog('plugin', 'info', `itch plugin ${manifest.version} waiting for initialize`);
-  await servePlugin(handlers);
+  await servePlugin({ ...handlers, ...pluginHandlers });
   process.exit(0);
 }
 

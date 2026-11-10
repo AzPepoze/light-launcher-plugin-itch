@@ -15,10 +15,17 @@
         "label": "itch.io",
         "capabilities": ["browse", "auth", "updateCheck", "resolveFiles", "sync:games"]
       }
+    ],
+    "commands": [
+      {
+        "id": "import-desktop-key",
+        "label": "Import itch.io key from the itch app"
+      }
     ]
   },
   "permissions": {
     "network": ["itch.io", "*.itch.io", "*.itch.zone"],
+    "fs": ["$ITCH_APP_DATA"],
     "secrets": true
   }
 }
