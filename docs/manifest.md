@@ -2,7 +2,7 @@
 
 # Manifest
 
-The manifest is `plugin.json` in the repo root. Light Launcher reads it before it starts the plugin.
+The manifest is `plugin.json` in the repo root. Light Launcher reads it before it starts the plugin. It must match the `plugin.schema.json` file in the SDK package. The test suite checks this.
 
 ## Fields
 
@@ -15,19 +15,46 @@ The manifest is `plugin.json` in the repo root. Light Launcher reads it before i
 | `minHost` | `2.0.0` | Oldest launcher version that can run it |
 | `entry.linux-x64` | `bin/linux-x64/itch` | Program for 64-bit Linux |
 | `entry.windows-x64` | `bin/windows-x64/itch.exe` | Program for 64-bit Windows |
-| `contributes.sources` | One source, `itch` | What the plugin adds to the launcher |
-| `permissions.network` | `itch.io`, `*.itch.io`, `*.itch.zone` | Hosts the plugin may reach |
-| `permissions.secrets` | `true` | The plugin needs the saved API key |
+| `contributes.sources` | One source, `itch` | The game source the plugin adds |
+| `contributes.commands` | `import-desktop-key` | An action in the command palette |
+| `permissions` | See below | What the plugin may use |
 
 ## Source capabilities
 
-| Capability | Included |
+| Capability | Included | The launcher may call |
+|---|---|---|
+| `browse` | Yes | `source.search`, `source.fetchGame` |
+| `auth` | Yes | `source.authStatus`, `source.setCredential`, `source.clearCredential` |
+| `updateCheck` | Yes | `source.checkUpdate` |
+| `resolveFiles` | Yes | `source.resolveFiles`, `source.prepareDownload` |
+| `sync:games` | Yes | `source.sync`, which returns the games you own |
+
+> [!IMPORTANT]
+> A source declares `sync:games` or `sync:index`, never both. This plugin uses `sync:games`.
+
+## Commands
+
+| Command id | Label | Method it runs |
+|---|---|---|
+| `import-desktop-key` | Import itch.io key from the itch app | `itch.importDesktopKey` |
+
+## Permissions
+
+| Permission | Value | Why the plugin needs it |
+|---|---|---|
+| `network` | `itch.io`, `*.itch.io`, `*.itch.zone` | Calls to itch.io and its download hosts |
+| `secrets` | `true` | Saves the API key in the host keyring |
+| `fs` | `$ITCH_APP_DATA` | Reads the API key from the itch desktop app data folder |
+
+### The itch app folder
+
+`$ITCH_APP_DATA` is the itch desktop app's data folder. The import command looks for its `butler.db` file in:
+
+| System | Folder |
 |---|---|
-| browse | Yes |
-| auth | Yes |
-| updateCheck | Yes |
-| resolveFiles | Yes |
-| sync | Yes |
+| Linux | `~/.config/itch` |
+| Windows | `%APPDATA%\itch` and `%LOCALAPPDATA%\itch` |
+| macOS | `~/Library/Application Support/itch` |
 
 > [!WARNING]
-> `permissions` is a request. In this version the launcher does not run the plugin in a sandbox, so a plugin can still open other connections.
+> `permissions` is a request. Network calls go through the host, so the launcher checks the `network` list. The plugin reads the desktop app's files itself, so the launcher does not check `fs` for them.

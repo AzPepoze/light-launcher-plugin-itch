@@ -7,6 +7,8 @@ An itch.io plugin for Light Launcher. It searches itch.io, reads your owned game
 
 ## Quick start
 
+The plugin needs the SDK repo in the folder next to this one. See [Development](docs/development.md#setup).
+
 ```sh
 bun install
 bun test
@@ -29,7 +31,8 @@ bun run build:linux
 | auth | Checks your itch.io API key |
 | updateCheck | Tells you when a game has a newer upload |
 | resolveFiles | Lists the downloads for a game you own |
-| sync | Imports the games you own |
+| sync:games | Imports the games you own |
+| Import key | Copies the API key from the itch desktop app |
 
 ## More
 

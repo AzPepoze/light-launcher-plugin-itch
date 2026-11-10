@@ -2,44 +2,56 @@
 
 # Development
 
+## Setup
+
+The plugin uses the SDK from a folder next to this repo:
+
+```text
+parent/
+├── light-launcher-plugin-itch/
+└── light-launcher-plugin-sdk/
+```
+
+`bun install` copies the SDK into `node_modules`. After you change the SDK, run `bun install` again.
+
 ## Layout
 
 | Path | Contents |
 |---|---|
-| `src/main.ts` | Entry point. Maps RPC methods to the provider |
-| `src/rpc.ts` | JSON-RPC over stdio |
+| `src/main.ts` | Entry point. Maps protocol methods to the provider |
+| `src/host.ts` | The services the provider needs from the host |
 | `src/logger.ts` | Colored logs on stderr |
-| `src/host.ts` | Services the host gives the plugin |
 | `src/providers/itch/` | itch.io API, parsing, library and upload rules |
 | `src/library/itch-key.ts` | Reads the API key from the itch desktop app |
-| `src/vendor/` | Copies of shared types and helpers (see below) |
-| `tests/` | Unit tests. They use in-memory fakes and make no network calls |
+| `tests/` | Unit tests, a manifest schema check and a stdio test |
 
-## Vendored code
-
-Files in `src/vendor/` are copies from the launcher's shared core. Each one starts with a header:
-
-```ts
-// vendored until the SDK is published; replace with @light-launcher/plugin-sdk
-```
-
-When the SDK is published, replace these imports with the package and delete `src/vendor/`.
+The protocol runtime, HTTP client and HTML helpers come from `@light-launcher/plugin-sdk`. See [Protocol](protocol.md).
 
 ## Commands
 
 | Command | Use |
 |---|---|
-| `bun test` | Run tests |
+| `bun test` | Run all tests |
 | `bun run typecheck` | Check types with `tsc` |
 | `bun run build:linux` | Build the Linux program |
 | `bun run build:windows` | Build the Windows program |
+
+## Tests
+
+| File | Checks |
+|---|---|
+| `itch.test.ts` | Parsing, upload rules, mapping, provider calls and credentials. Uses a fake host, no network |
+| `manifest.test.ts` | `plugin.json` against the SDK schema. Skipped with a message when ajv is missing |
+| `stdio.test.ts` | Runs the plugin as a child process and talks to it over stdio |
+| `logger.test.ts` | Log colors and category colors |
 
 ## Known gaps
 
 | Gap | Effect |
 |---|---|
-| Storage is in memory | Data is lost when the plugin exits |
+| `dataDir` is not used | The plugin keeps no files yet |
 | `dump` only logs | Raw pages for failed parses are not saved |
-| The desktop key reader is not wired | `src/library/itch-key.ts` has no RPC method yet |
-| Permissions are not enforced here | The launcher must check them |
-| Credential is passed in `initialize` | The launcher must send the key, since the plugin does not read secrets |
+| `fs` is not checked by the host | The desktop key import reads files itself |
+| Plugin methods are not in the SDK types | `itch.importDesktopKey` is added in `src/main.ts` |
+| Command ids are not linked to methods | The schema does not say which method a command runs |
+| Replies after shutdown are dropped | A request still running when `shutdown` arrives gets no reply |
