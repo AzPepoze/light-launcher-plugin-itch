@@ -6,28 +6,25 @@ import manifest from '../plugin.json';
 import { HttpClient, hostTransport } from '@light-launcher/plugin-sdk/helpers';
 import {
   servePlugin,
+  sourceHandlers,
   type HostClient,
   type PluginContext,
   type PluginHandlers,
 } from '@light-launcher/plugin-sdk/runtime';
-import type {
-  CheckUpdateParams,
-  CheckUpdateResult,
-  FetchGameParams,
-  FetchGameResult,
-  InitializeParams,
-  InitializeResult,
-  ResolveFilesParams,
-  ResolveFilesResult,
-  SearchParams,
-  SearchResult,
-} from '@light-launcher/plugin-sdk/types';
+import type { InitializeParams, InitializeResult } from '@light-launcher/plugin-sdk/types';
 import { readItchApiKey } from './library/itch-key';
 import type { HostServices } from './host';
 import { writeLog } from './logger';
 import { createItchProvider, type ItchProvider } from './providers/itch';
 
 const CATEGORY = 'itch';
+/** Responses are small JSON or game pages. Anything bigger is not from the itch API. */
+const MAX_BODY_BYTES = 8 * 1024 * 1024;
+
+/** Plugin-defined methods, named in contributes.commands. */
+type ItchMethods = {
+  'itch.importDesktopKey': { params: Record<string, never>; result: { found: boolean } };
+};
 
 let provider: ItchProvider | null = null;
 
@@ -38,7 +35,7 @@ function requireProvider(): ItchProvider {
 
 function createHostServices(host: HostClient): HostServices {
   return {
-    http: new HttpClient(hostTransport(host)),
+    http: new HttpClient(hostTransport(host), { maxBodyBytes: MAX_BODY_BYTES }),
     secrets: host.secrets,
     dump(name, body) {
       writeLog(CATEGORY, 'debug', `parse dump skipped: ${name}`, { bytes: body.length });
@@ -54,22 +51,6 @@ function initialize(_params: InitializeParams, ctx: PluginContext): InitializeRe
   return { pluginVersion: manifest.version, capabilities: { [provider.id]: provider.capabilities } };
 }
 
-async function search(params: SearchParams): Promise<SearchResult> {
-  return { games: await requireProvider().fetchList(params) };
-}
-
-async function fetchGame({ ref }: FetchGameParams): Promise<FetchGameResult> {
-  return { game: await requireProvider().fetchGame(ref) };
-}
-
-async function resolveFiles({ game }: ResolveFilesParams): Promise<ResolveFilesResult> {
-  return { files: await requireProvider().resolveFiles(game) };
-}
-
-async function checkUpdate({ game }: CheckUpdateParams): Promise<CheckUpdateResult> {
-  return { update: await requireProvider().checkUpdate(game) };
-}
-
 /** Copies the API key from the itch desktop app. Stores it only when the app has one. */
 async function importDesktopKey(): Promise<{ found: boolean }> {
   const apiKey = readItchApiKey();
@@ -78,28 +59,15 @@ async function importDesktopKey(): Promise<{ found: boolean }> {
   return { found: true };
 }
 
-const handlers: PluginHandlers = {
+const handlers: PluginHandlers<ItchMethods> = {
   initialize,
-  'source.authStatus': () => requireProvider().authStatus(),
-  'source.setCredential': ({ value }) => requireProvider().setCredential(value),
-  'source.clearCredential': () => requireProvider().clearCredential(),
-  'source.parseRef': ({ url }) => requireProvider().parseRef(url),
-  'source.search': search,
-  'source.fetchGame': fetchGame,
-  'source.resolveFiles': resolveFiles,
-  'source.prepareDownload': ({ file, game }) => requireProvider().prepareDownload(file, game),
-  'source.checkUpdate': checkUpdate,
-  'source.sync': () => requireProvider().sync(),
-};
-
-/** Plugin methods beyond the SDK's typed host methods. Listed under contributes.commands. */
-const pluginHandlers = {
+  ...sourceHandlers(requireProvider, 'itch'),
   'itch.importDesktopKey': importDesktopKey,
 };
 
 async function main(): Promise<void> {
   writeLog('plugin', 'info', `itch plugin ${manifest.version} waiting for initialize`);
-  await servePlugin({ ...handlers, ...pluginHandlers });
+  await servePlugin(handlers);
   process.exit(0);
 }
 

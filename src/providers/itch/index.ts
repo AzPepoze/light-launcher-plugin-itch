@@ -12,11 +12,10 @@ import type {
   GameDTO,
   GameRef,
   Platform,
-  ProviderCapabilities,
   Ref,
-  SearchParams,
   UpdateInfo,
 } from '@light-launcher/plugin-sdk/types';
+import type { ListOptions, SourceProvider } from '@light-launcher/plugin-sdk/runtime';
 import type { HostServices } from '../../host';
 import {
   mapGame,
@@ -45,23 +44,10 @@ import {
 const SECRET_KEY = 'apikey';
 const MAX_SYNC_GAMES = 40;
 
-export interface ItchProvider {
-  readonly id: string;
+export interface ItchProvider extends SourceProvider {
   readonly label: string;
-  readonly capabilities: ProviderCapabilities;
-  parseRef(url: string): Ref | null;
-  authStatus(): Promise<AuthState>;
-  /** validates the key, then stores it when it works; a blank value clears it */
-  setCredential(value: string): Promise<AuthState>;
-  clearCredential(): Promise<AuthState>;
   /** stores a key without checking it online */
   importCredential(value: string): Promise<void>;
-  fetchGame(ref: Ref): Promise<GameDTO>;
-  fetchList(opts: Pick<SearchParams, 'url' | 'query' | 'page'>): Promise<GameDTO[]>;
-  resolveFiles(game: GameRef): Promise<FileCandidate[]>;
-  prepareDownload(file: FileCandidate, game: GameRef): Promise<{ url: string; headers: Record<string, string> }>;
-  checkUpdate(game: GameRef): Promise<UpdateInfo | null>;
-  sync(): Promise<GameDTO[]>;
 }
 
 function toPlatform(platform: UploadPlatform): Platform {
@@ -149,7 +135,7 @@ export function createItchProvider(host: HostServices): ItchProvider {
     });
   }
 
-  async function fetchList(opts: Pick<SearchParams, 'url' | 'query' | 'page'>): Promise<GameDTO[]> {
+  async function fetchList(opts: ListOptions): Promise<GameDTO[]> {
     const target = opts.url?.trim();
     if (!target || !isItchUrl(target)) return [];
     let res;
