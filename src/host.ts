@@ -10,7 +10,7 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface HostServices {
   /** outbound HTTP through the host: allow-listed, rate-limited and retried there */
-  http: Pick<HttpClient, 'request'>;
+  http: Pick<HttpClient, 'request' | 'json'>;
   secrets: HostClient['secrets'];
   /** keep a raw page when parsing fails */
   dump(name: string, body: string): void;
