@@ -19,13 +19,14 @@
     "commands": [
       {
         "id": "import-desktop-key",
-        "label": "Import itch.io key from the itch app"
+        "label": "Import itch.io key from the itch app",
+        "method": "itch.importDesktopKey"
       }
     ]
   },
   "permissions": {
     "network": ["itch.io", "*.itch.io", "*.itch.zone"],
-    "fs": ["$ITCH_APP_DATA"],
+    "fs": ["$APPDATA_ITCH"],
     "secrets": true
   }
 }

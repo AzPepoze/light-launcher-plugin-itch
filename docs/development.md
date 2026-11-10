@@ -52,6 +52,4 @@ The protocol runtime, HTTP client and HTML helpers come from `@light-launcher/pl
 | `dataDir` is not used | The plugin keeps no files yet |
 | `dump` only logs | Raw pages for failed parses are not saved |
 | `fs` is not checked by the host | The desktop key import reads files itself |
-| Plugin methods are not in the SDK types | `itch.importDesktopKey` is added in `src/main.ts` |
-| Command ids are not linked to methods | The schema does not say which method a command runs |
 | Replies after shutdown are dropped | A request still running when `shutdown` arrives gets no reply |

@@ -44,11 +44,11 @@ The manifest is `plugin.json` in the repo root. Light Launcher reads it before i
 |---|---|---|
 | `network` | `itch.io`, `*.itch.io`, `*.itch.zone` | Calls to itch.io and its download hosts |
 | `secrets` | `true` | Saves the API key in the host keyring |
-| `fs` | `$ITCH_APP_DATA` | Reads the API key from the itch desktop app data folder |
+| `fs` | `$APPDATA_ITCH` | Reads the API key from the itch desktop app data folder |
 
 ### The itch app folder
 
-`$ITCH_APP_DATA` is the itch desktop app's data folder. The import command looks for its `butler.db` file in:
+`$APPDATA_ITCH` is the itch desktop app's data folder. The import command looks for its `butler.db` file in:
 
 | System | Folder |
 |---|---|
