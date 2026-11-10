@@ -1,0 +1,24 @@
+{
+  "id": "itch",
+  "name": "itch.io",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "minHost": "2.0.0",
+  "entry": {
+    "linux-x64": "bin/linux-x64/itch",
+    "windows-x64": "bin/windows-x64/itch.exe"
+  },
+  "contributes": {
+    "sources": [
+      {
+        "id": "itch",
+        "label": "itch.io",
+        "capabilities": ["browse", "auth", "updateCheck", "resolveFiles", "sync"]
+      }
+    ]
+  },
+  "permissions": {
+    "network": ["itch.io", "*.itch.io", "*.itch.zone"],
+    "secrets": true
+  }
+}
