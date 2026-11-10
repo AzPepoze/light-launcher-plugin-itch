@@ -1,9 +1,9 @@
 /**
  * itch.io provider.
  *
- * Credential: a personal itch.io API key, given by the host at startup
- * (`host.credential`). `setCredential` only validates it and must not persist;
- * the host stores the secret.
+ * Credential: a personal itch.io API key, stored by the host in its keyring under
+ * `apikey`. The key is read once, on first use, and cached in memory. Setting or
+ * clearing it updates both the keyring and the cache.
  */
 
 import type {
@@ -12,10 +12,11 @@ import type {
   GameDTO,
   GameRef,
   Platform,
-  Provider,
+  ProviderCapabilities,
   Ref,
+  SearchParams,
   UpdateInfo,
-} from '../../vendor/types';
+} from '@light-launcher/plugin-sdk/types';
 import type { HostServices } from '../../host';
 import {
   mapGame,
@@ -41,7 +42,27 @@ import {
   type UploadPlatform,
 } from './uploads';
 
+const SECRET_KEY = 'apikey';
 const MAX_SYNC_GAMES = 40;
+
+export interface ItchProvider {
+  readonly id: string;
+  readonly label: string;
+  readonly capabilities: ProviderCapabilities;
+  parseRef(url: string): Ref | null;
+  authStatus(): Promise<AuthState>;
+  /** validates the key, then stores it when it works; a blank value clears it */
+  setCredential(value: string): Promise<AuthState>;
+  clearCredential(): Promise<AuthState>;
+  /** stores a key without checking it online */
+  importCredential(value: string): Promise<void>;
+  fetchGame(ref: Ref): Promise<GameDTO>;
+  fetchList(opts: Pick<SearchParams, 'url' | 'query' | 'page'>): Promise<GameDTO[]>;
+  resolveFiles(game: GameRef): Promise<FileCandidate[]>;
+  prepareDownload(file: FileCandidate, game: GameRef): Promise<{ url: string; headers: Record<string, string> }>;
+  checkUpdate(game: GameRef): Promise<UpdateInfo | null>;
+  sync(): Promise<GameDTO[]>;
+}
 
 function toPlatform(platform: UploadPlatform): Platform {
   return platform === 'other' ? 'unknown' : platform;
@@ -73,36 +94,54 @@ function isItchUrl(url: string): boolean {
   }
 }
 
-export function createItchProvider(host: HostServices): Provider {
-  let key = host.credential?.trim() || null;
+function unconfigured(): AuthState {
+  return { status: 'unconfigured', checkedAt: new Date().toISOString() };
+}
 
-  function requireKey(): string {
-    if (!key) throw new Error('itch.io API key is not configured');
+export function createItchProvider(host: HostServices): ItchProvider {
+  /** undefined until the first read from host secrets */
+  let key: string | null | undefined;
+
+  async function currentKey(): Promise<string | null> {
+    if (key === undefined) key = (await host.secrets.get(SECRET_KEY))?.trim() || null;
     return key;
   }
 
+  async function requireKey(): Promise<string> {
+    const apiKey = await currentKey();
+    if (!apiKey) throw new Error('itch.io API key is not configured');
+    return apiKey;
+  }
+
+  async function storeKey(value: string): Promise<void> {
+    await host.secrets.set(SECRET_KEY, value);
+    key = value;
+  }
+
   async function authStatus(): Promise<AuthState> {
-    if (!key) return { status: 'unconfigured', checkedAt: new Date().toISOString() };
-    return checkKey(host, key);
+    const apiKey = await currentKey();
+    if (!apiKey) return unconfigured();
+    return checkKey(host, apiKey);
   }
 
   async function setCredential(value: string): Promise<AuthState> {
     const trimmed = value.trim();
-    if (!trimmed) {
-      key = null;
-      return { status: 'unconfigured', checkedAt: new Date().toISOString() };
-    }
+    if (!trimmed) return clearCredential();
     const state = await checkKey(host, trimmed);
-    if (state.status === 'ok') key = trimmed;
-    // Intentionally NOT persisted here: the API layer writes the secret and
-    // recreates the provider, which re-reads it from the database.
+    if (state.status === 'ok') await storeKey(trimmed);
     return state;
+  }
+
+  async function clearCredential(): Promise<AuthState> {
+    await host.secrets.delete(SECRET_KEY);
+    key = null;
+    return unconfigured();
   }
 
   async function fetchGame(ref: Ref): Promise<GameDTO> {
     const gameId = await resolveGameId(host, ref);
-    const game = await fetchGamePayload(host, gameId, requireKey());
-    const uploads = await fetchUploads(host, gameId, requireKey());
+    const game = await fetchGamePayload(host, gameId, await requireKey());
+    const uploads = await fetchUploads(host, gameId, await requireKey());
     return mapGame(game, {
       upload: pickNewest(uploads),
       fallbackId: ref.id,
@@ -110,16 +149,12 @@ export function createItchProvider(host: HostServices): Provider {
     });
   }
 
-  async function fetchList(opts: {
-    url?: string;
-    query?: string;
-    page?: number;
-  }): Promise<GameDTO[]> {
+  async function fetchList(opts: Pick<SearchParams, 'url' | 'query' | 'page'>): Promise<GameDTO[]> {
     const target = opts.url?.trim();
     if (!target || !isItchUrl(target)) return [];
     let res;
     try {
-      res = await host.http.get(target, { headers: { Accept: 'text/html' } });
+      res = await host.http.request(target, { headers: { Accept: 'text/html' } });
     } catch (err) {
       throw new Error(`itch.io listing failed: ${errorMessage(err)}`);
     }
@@ -132,7 +167,7 @@ export function createItchProvider(host: HostServices): Provider {
   }
 
   async function resolveFiles(game: GameRef): Promise<FileCandidate[]> {
-    const apiKey = requireKey();
+    const apiKey = await requireKey();
     const gameId = await gameIdOf(host, game);
     const downloadKeyId = await ownedDownloadKeyId(host, gameId, apiKey);
     const uploads = await fetchUploads(host, gameId, apiKey);
@@ -164,7 +199,7 @@ export function createItchProvider(host: HostServices): Provider {
   }
 
   async function checkUpdate(game: GameRef): Promise<UpdateInfo | null> {
-    const uploads = await fetchUploads(host, await gameIdOf(host, game), requireKey());
+    const uploads = await fetchUploads(host, await gameIdOf(host, game), await requireKey());
     const newest = pickNewest(uploads);
     if (!newest) return null;
 
@@ -183,7 +218,8 @@ export function createItchProvider(host: HostServices): Provider {
   }
 
   async function sync(): Promise<GameDTO[]> {
-    const ids = await ownedGameIds(host, requireKey());
+    const apiKey = await requireKey();
+    const ids = await ownedGameIds(host, apiKey);
     if (!ids.length) {
       host.log('warn', 'itch.io sync found no owned games; key may lack library scope');
       return [];
@@ -192,8 +228,8 @@ export function createItchProvider(host: HostServices): Provider {
     const games: GameDTO[] = [];
     for (const id of ids.slice(0, MAX_SYNC_GAMES)) {
       try {
-        const payload = await fetchGamePayload(host, id, requireKey());
-        const uploads = await fetchUploads(host, id, requireKey());
+        const payload = await fetchGamePayload(host, id, apiKey);
+        const uploads = await fetchUploads(host, id, apiKey);
         games.push(mapGame(payload, { upload: pickNewest(uploads) }));
       } catch (err) {
         host.log('warn', `itch.io sync skipped game ${id}`, errorMessage(err));
@@ -215,9 +251,8 @@ export function createItchProvider(host: HostServices): Provider {
     parseRef: parseItchRef,
     authStatus,
     setCredential,
-    clearCredential() {
-      key = null;
-    },
+    clearCredential,
+    importCredential: storeKey,
     fetchGame,
     fetchList,
     resolveFiles,

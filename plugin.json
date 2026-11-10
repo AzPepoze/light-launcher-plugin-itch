@@ -13,7 +13,7 @@
       {
         "id": "itch",
         "label": "itch.io",
-        "capabilities": ["browse", "auth", "updateCheck", "resolveFiles", "sync"]
+        "capabilities": ["browse", "auth", "updateCheck", "resolveFiles", "sync:games"]
       }
     ]
   },

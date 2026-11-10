@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { createMemoryStore, type HostServices } from '../src/host';
+import { fetchTransport, HttpClient } from '@light-launcher/plugin-sdk/helpers';
+import type { HostServices } from '../src/host';
 import { createItchProvider, parseRef } from '../src/providers/itch';
 import {
   mapGame,
@@ -214,34 +215,43 @@ describe('mapGame', () => {
 
 const UPLOAD_JSON = { uploads: [SAMPLE_UPLOAD] };
 
-function jsonRoute(url: string): unknown {
-  const path = new URL(url).pathname;
+function jsonRoute(path: string): unknown {
   if (path === '/games/2828037') return { game: SAMPLE_GAME };
   if (path === '/games/2828037/uploads') return UPLOAD_JSON;
   if (path === '/profile/owned-keys') return { owned_keys: [] };
+  if (path === '/profile') return { user: { username: 'krasuepi', display_name: 'Krasuepi' } };
   throw new Error(`unexpected request ${path}`);
 }
 
-function fakeHost(credential: string | null): HostServices {
+/** answers API calls from memory through the SDK's local fetch transport */
+const routeFetch = (async (input: string | URL | Request) => {
+  const body = jsonRoute(new URL(String(input)).pathname);
+  return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+}) as typeof fetch;
+
+/** host services backed by a map for the keyring; no network */
+function fakeHost(store: Map<string, string>, fetchImpl: typeof fetch = routeFetch): HostServices {
   return {
-    http: {
-      async get(url: string) {
-        return { status: 200, url, text: '<html></html>', headers: new Headers(), notModified: false };
+    http: new HttpClient(fetchTransport(fetchImpl)),
+    secrets: {
+      async get(key) {
+        return store.get(key) ?? null;
       },
-      async json<T>(url: string) {
-        return jsonRoute(url) as T;
+      async set(key, value) {
+        store.set(key, value);
+      },
+      async delete(key) {
+        store.delete(key);
       },
     },
-    credential,
     dump() {},
     log() {},
-    storage: createMemoryStore(),
   };
 }
 
 describe('createItchProvider', () => {
   test('metadata and fetchGame include the newest upload id', async () => {
-    const provider = createItchProvider(fakeHost('test-key'));
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']])));
     expect(provider.id).toBe('itch');
     expect(provider.label).toBe('itch.io');
     expect(provider.capabilities.auth).toBe('apikey');
@@ -257,9 +267,8 @@ describe('createItchProvider', () => {
   });
 
   test('resolveFiles emits one candidate per upload with an authenticated url', async () => {
-    const provider = createItchProvider(fakeHost('test-key'));
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']])));
     const files = await provider.resolveFiles({
-      id: 1,
       source: 'itch',
       sourceId: '2828037',
       url: 'https://krasuepi.itch.io/hotpw',
@@ -278,5 +287,36 @@ describe('createItchProvider', () => {
       rangeHint: true,
       requiresAuth: false,
     });
+  });
+});
+
+describe('credentials', () => {
+  test('authStatus is unconfigured without a stored key', async () => {
+    const provider = createItchProvider(fakeHost(new Map()));
+    expect((await provider.authStatus()).status).toBe('unconfigured');
+  });
+
+  test('setCredential stores a working key, trimmed, and authStatus reads it back', async () => {
+    const store = new Map<string, string>();
+    const provider = createItchProvider(fakeHost(store));
+    const state = await provider.setCredential('  new-key  ');
+    expect(state).toMatchObject({ status: 'ok', user: 'Krasuepi' });
+    expect(store.get('apikey')).toBe('new-key');
+    expect((await provider.authStatus()).status).toBe('ok');
+  });
+
+  test('setCredential does not store a key that itch.io rejects', async () => {
+    const store = new Map<string, string>();
+    const rejected = (async (_input: string | URL | Request) => new Response('{}', { status: 401 })) as typeof fetch;
+    const provider = createItchProvider(fakeHost(store, rejected));
+    expect((await provider.setCredential('bad-key')).status).toBe('invalid');
+    expect(store.has('apikey')).toBe(false);
+  });
+
+  test('clearCredential deletes the stored key', async () => {
+    const store = new Map([['apikey', 'test-key']]);
+    const provider = createItchProvider(fakeHost(store));
+    expect((await provider.clearCredential()).status).toBe('unconfigured');
+    expect(store.has('apikey')).toBe(false);
   });
 });

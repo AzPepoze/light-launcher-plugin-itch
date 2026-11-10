@@ -3,8 +3,8 @@
  * Kept free of network access so they can be unit tested directly.
  */
 
-import type { GameDTO, Ref } from '../../vendor/types';
-import { absUrl, load, txt } from '../../vendor/html';
+import { absUrl, load, txt } from '@light-launcher/plugin-sdk/helpers';
+import type { GameDTO, Ref } from '@light-launcher/plugin-sdk/types';
 import type { ItchGamePayload } from './mapping';
 
 export const ITCH_API = 'https://api.itch.io';

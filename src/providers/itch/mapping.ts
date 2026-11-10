@@ -2,7 +2,7 @@
  * itch.io payload -> GameDTO mapping. No network here; pure enough to unit test.
  */
 
-import type { GameDTO, GameStatus } from '../../vendor/types';
+import type { GameDTO, GameStatus } from '@light-launcher/plugin-sdk/types';
 import { isDemo, versionFromUpload, type ItchUpload } from './uploads';
 
 export interface ItchUser {

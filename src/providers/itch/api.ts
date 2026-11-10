@@ -3,8 +3,7 @@
  * key explicitly so this module remains stateless.
  */
 
-import type { AuthState, GameRef, Ref } from '../../vendor/types';
-import { HttpError } from '../../vendor/http';
+import type { AuthState, GameRef, Ref } from '@light-launcher/plugin-sdk/types';
 import type { HostServices } from '../../host';
 import {
   apiUrl,
@@ -18,14 +17,35 @@ import type { ItchUpload } from './uploads';
 
 const MAX_LIBRARY_PAGES = 40;
 
+/** A failed call that keeps its HTTP status, so callers can tell 404 from other failures. */
+export class HttpStatusError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = 'HttpStatusError';
+  }
+}
+
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/** GET a URL and parse the body as JSON. The SDK json helper drops the status, so it is parsed here. */
+async function getJson<T>(host: HostServices, url: string, retries?: number): Promise<T> {
+  const res = await host.http.request(url, { headers: { Accept: 'application/json' }, retries });
+  try {
+    return JSON.parse(res.text) as T;
+  } catch {
+    throw new HttpStatusError(`invalid JSON from ${url}`, res.status);
+  }
 }
 
 export async function checkKey(host: HostServices, value: string): Promise<AuthState> {
   const checkedAt = new Date().toISOString();
   try {
-    const res = await host.http.get(apiUrl('/profile', value), {
+    const res = await host.http.request(apiUrl('/profile', value), {
       headers: { Accept: 'application/json' },
       retries: 0,
     });
@@ -48,10 +68,6 @@ export async function checkKey(host: HostServices, value: string): Promise<AuthS
       checkedAt,
     };
   } catch (err) {
-    const status = err instanceof HttpError ? err.status : 0;
-    if (status === 401 || status === 403) {
-      return { status: 'invalid', message: 'itch.io rejected the API key', checkedAt };
-    }
     return { status: 'error', message: errorMessage(err), checkedAt };
   }
 }
@@ -61,9 +77,7 @@ export async function fetchGamePayload(
   gameId: number | string,
   key: string,
 ): Promise<ItchGamePayload> {
-  const raw = await host.http.json<ItchGameResponse | ItchGamePayload>(
-    apiUrl(`/games/${gameId}`, key),
-  );
+  const raw = await getJson<ItchGameResponse | ItchGamePayload>(host, apiUrl(`/games/${gameId}`, key));
   const game = (raw as ItchGameResponse)?.game ?? (raw as ItchGamePayload);
   const numeric = Number(game?.id);
   if (!game || !Number.isFinite(numeric) || numeric <= 0) {
@@ -73,7 +87,7 @@ export async function fetchGamePayload(
 }
 
 function uploadsFailure(err: unknown): string {
-  const status = err instanceof HttpError ? err.status : 0;
+  const status = err instanceof HttpStatusError ? err.status : 0;
   return status ? `HTTP ${status}: ${errorMessage(err)}` : errorMessage(err);
 }
 
@@ -83,7 +97,7 @@ export async function fetchUploads(
   key: string,
 ): Promise<ItchUpload[]> {
   try {
-    const raw = await host.http.json<ItchUploadsResponse>(apiUrl(`/games/${gameId}/uploads`, key));
+    const raw = await getJson<ItchUploadsResponse>(host, apiUrl(`/games/${gameId}/uploads`, key));
     return Array.isArray(raw?.uploads) ? raw.uploads : [];
   } catch (err) {
     host.log('warn', `itch uploads lookup failed for ${gameId}`, errorMessage(err));
@@ -95,7 +109,7 @@ export async function fetchUploads(
 export async function resolveGameId(host: HostServices, ref: Ref): Promise<number> {
   if (/^\d+$/.test(ref.id)) return Number(ref.id);
   const pageUrl = /^https?:\/\//i.test(ref.url) ? ref.url : `https://${ref.id}`;
-  const res = await host.http.get(pageUrl, { headers: { Accept: 'text/html' } });
+  const res = await host.http.request(pageUrl, { headers: { Accept: 'text/html' } });
   if (res.status >= 400) {
     throw new Error(`itch.io page ${pageUrl} returned HTTP ${res.status}`);
   }
@@ -126,11 +140,9 @@ export async function ownedGameIds(host: HostServices, key: string): Promise<num
   for (let page = 1; page <= MAX_LIBRARY_PAGES; page++) {
     let raw: unknown;
     try {
-      raw = await host.http.json<unknown>(
-        apiUrl('/profile/owned-keys', key, { page: String(page) }),
-      );
+      raw = await getJson<unknown>(host, apiUrl('/profile/owned-keys', key, { page: String(page) }));
     } catch (err) {
-      const status = err instanceof HttpError ? err.status : 0;
+      const status = err instanceof HttpStatusError ? err.status : 0;
       if (status === 404) {
         throw new Error(
           'itch.io returned 404 for /profile/owned-keys: this API key may not have ' +
@@ -163,7 +175,8 @@ export async function ownedDownloadKeyId(
   key: string,
 ): Promise<number | null> {
   try {
-    const raw = await host.http.json<OwnedKeysResponse>(
+    const raw = await getJson<OwnedKeysResponse>(
+      host,
       apiUrl('/profile/owned-keys', key, { game_ids: String(gameId) }),
     );
     const match = (raw?.owned_keys ?? []).find((item) => Number(item.game_id) === gameId);
