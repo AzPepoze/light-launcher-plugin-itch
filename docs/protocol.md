@@ -28,6 +28,7 @@ The message rules and typed params come from the `@light-launcher/plugin-sdk` pa
 | `source.prepareDownload` | `source`, `file`, `game` | `{ url, headers, root?, subfolder?, install?, installSubfolder?, deleteArchive? }` |
 | `source.checkUpdate` | `source`, `game` | `{ update }`. `update` is `null` when nothing changed |
 | `source.sync` | `source` | `GameDTO[]`, the games you own (`sync:games`) |
+| `source.listGames` | `source`, `scope`, `cursor?`, `limit` | `{ games, nextCursor?, total? }`, one page of the games you own. Needs `listGames` |
 | `itch.importDesktopKey` | none | `{ found }`. Copies the key from the itch desktop app |
 | `shutdown` | none | `null`. The plugin then exits |
 

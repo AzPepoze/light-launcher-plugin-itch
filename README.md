@@ -33,6 +33,7 @@ bun run build:linux
 | updateCheck | Tells you when a game has a newer upload |
 | resolveFiles | Lists the downloads for a game you own |
 | sync:games | Imports the games you own |
+| listGames | Lists the games you own, one page at a time |
 | Import key | Copies the API key from the itch desktop app |
 
 ## Permissions

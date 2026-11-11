@@ -50,7 +50,7 @@ The protocol runtime, HTTP client and HTML helpers come from `@light-launcher/pl
 
 | File | Checks |
 |---|---|
-| `itch.test.ts` | Parsing, upload rules, mapping, provider calls and credentials. Uses a fake host, no network |
+| `itch.test.ts` | Parsing, upload rules, mapping, provider calls, credentials and the owned game list. Uses a fake host, no network |
 | `manifest.test.ts` | `plugin.json` against the SDK schema. Skipped with a message when ajv is missing |
 | `stdio.test.ts` | Runs the plugin as a child process and talks to it over stdio |
 | `logger.test.ts` | Log colors and category colors |

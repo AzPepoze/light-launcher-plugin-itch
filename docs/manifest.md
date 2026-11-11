@@ -29,6 +29,13 @@ The manifest is `plugin.json` in the repo root. Light Launcher reads it before i
 | `updateCheck` | Yes | `source.checkUpdate` |
 | `resolveFiles` | Yes | `source.resolveFiles`, `source.prepareDownload` |
 | `sync:games` | Yes | `source.sync`, which returns the games you own |
+| `listGames` | Yes | `source.listGames`, one page of the games you own |
+
+## Source tile
+
+| Field | Value in this plugin | Meaning |
+|---|---|---|
+| `tile` | `poster` | Shape of the game cards: `poster` (3:4), `wide` (16:9) or `square` (1:1) |
 
 > [!IMPORTANT]
 > A source declares `sync:games` or `sync:index`, never both. This plugin uses `sync:games`.

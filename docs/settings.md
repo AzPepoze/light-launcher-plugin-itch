@@ -34,7 +34,7 @@ The launcher has two places for downloads: its downloads folder and its games fo
 
 | Setting | Default | What it does |
 |---|---|---|
-| `syncOwnedGames` | on | Off imports no games from your itch.io library |
+| `syncOwnedGames` | on | Off imports no games from your itch.io library. The owned games list still works |
 | `syncIntervalHours` | `0` | Reuses the last library import for this many hours. `0` imports every time |
 
 ## Updates
