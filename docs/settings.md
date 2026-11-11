@@ -18,7 +18,7 @@ The launcher has two places for downloads: its downloads folder and its games fo
 | `deleteArchiveAfterInstall` | off | Removes the archive after a good unpack. Only applies when unpacking is on |
 
 > [!NOTE]
-> The game folder is one safe path segment: characters a file system rejects are removed, leading dots and spaces are dropped, and the name is capped in length. A title with nothing usable left becomes `game`.
+> The game folder name works on both Windows and Linux. The plugin removes characters Windows does not allow, drops leading and trailing dots and spaces, and caps the name at 200 bytes. Names Windows reserves, such as `CON`, get an underscore. A title with nothing usable left becomes `game`. The rules come from the SDK.
 
 > [!IMPORTANT]
 > The games folder and unpacking need the `$GAMES` permission. The plugin asks for it in `plugin.json`.

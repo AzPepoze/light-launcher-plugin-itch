@@ -54,8 +54,7 @@ The protocol runtime, HTTP client and HTML helpers come from `@light-launcher/pl
 | `manifest.test.ts` | `plugin.json` against the SDK schema. Skipped with a message when ajv is missing |
 | `stdio.test.ts` | Runs the plugin as a child process and talks to it over stdio |
 | `logger.test.ts` | Log colors and category colors |
-| `settings.test.ts` | Settings schema, defaults and invalid values |
-| `downloads.test.ts` | Download hints, game folder names and defaults |
+| `settings.test.ts` | Settings schema, defaults, invalid values and the download settings against the SDK |
 | `http.test.ts` | Request delay and user agent |
 | `debug.test.ts` | Verbose logging and the dump writer |
 
