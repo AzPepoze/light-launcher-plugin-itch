@@ -60,6 +60,11 @@ export function isDemo(upload: ItchUpload): boolean {
   return /demo/i.test(upload.filename ?? '');
 }
 
+/** soundtrack or OST by filename; the API does not tag these */
+export function isSoundtrack(upload: ItchUpload): boolean {
+  return /soundtrack|\bost\b/i.test(upload.filename ?? '');
+}
+
 export function preferPlatform(upload: ItchUpload): UploadPlatform {
   const traits = new Set(traitsOf(upload));
   if (traits.has('p_windows')) return 'windows';

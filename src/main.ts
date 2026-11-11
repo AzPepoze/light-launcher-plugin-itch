@@ -16,6 +16,7 @@ import { readItchApiKey } from './library/itch-key';
 import type { HostServices } from './host';
 import { writeLog } from './logger';
 import { createItchProvider, type ItchProvider } from './providers/itch';
+import { readSettings } from './settings';
 
 const CATEGORY = 'itch';
 /** Responses are small JSON or game pages. Anything bigger is not from the itch API. */
@@ -37,6 +38,7 @@ function createHostServices(host: HostClient): HostServices {
   return {
     http: new HttpClient(hostTransport(host), { maxBodyBytes: MAX_BODY_BYTES }),
     secrets: host.secrets,
+    settings: async () => readSettings(await host.settings.get()),
     dump(name, body) {
       writeLog(CATEGORY, 'debug', `parse dump skipped: ${name}`, { bytes: body.length });
     },

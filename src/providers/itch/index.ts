@@ -35,11 +35,14 @@ import {
 import {
   chooseUploads,
   isDemo,
+  isSoundtrack,
   pickNewest,
   preferPlatform,
   versionFromUpload,
+  type ItchUpload,
   type UploadPlatform,
 } from './uploads';
+import { preferredFilePlatform, type PreferredPlatform } from '../../settings';
 
 const SECRET_KEY = 'apikey';
 const MAX_SYNC_GAMES = 40;
@@ -52,6 +55,20 @@ export interface ItchProvider extends SourceProvider {
 
 function toPlatform(platform: UploadPlatform): Platform {
   return platform === 'other' ? 'unknown' : platform;
+}
+
+function withoutExtras(uploads: ItchUpload[], skip: boolean): ItchUpload[] {
+  return skip ? uploads.filter((upload) => !isSoundtrack(upload)) : uploads;
+}
+
+/** Moves files for the preferred platform to the front. Keeps the order inside each group. */
+function preferredFirst(files: FileCandidate[], setting: PreferredPlatform): FileCandidate[] {
+  const wanted = preferredFilePlatform(setting);
+  if (!wanted) return files;
+  return [
+    ...files.filter((file) => file.platform === wanted),
+    ...files.filter((file) => file.platform !== wanted),
+  ];
 }
 
 function errorMessage(err: unknown): string {
@@ -158,8 +175,9 @@ export function createItchProvider(host: HostServices): ItchProvider {
     const downloadKeyId = await ownedDownloadKeyId(host, gameId, apiKey);
     const uploads = await fetchUploads(host, gameId, apiKey);
     if (!uploads.length) throw noUploadsError(downloadKeyId);
+    const settings = await host.settings();
     const params = downloadKeyParams(downloadKeyId);
-    return chooseUploads(uploads).map((upload) => {
+    const files = chooseUploads(withoutExtras(uploads, settings.skipSoundtracksAndExtras)).map((upload) => {
       const platform = preferPlatform(upload);
       return {
         id: `itch-upload-${upload.id}`,
@@ -175,6 +193,7 @@ export function createItchProvider(host: HostServices): ItchProvider {
         headers: {},
       };
     });
+    return preferredFirst(files, settings.preferredPlatform);
   }
 
   async function prepareDownload(

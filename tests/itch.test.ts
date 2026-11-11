@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { fetchTransport, HttpClient } from '@light-launcher/plugin-sdk/helpers';
 import type { HostServices } from '../src/host';
+import { readSettings, type PluginSettings } from '../src/settings';
 import { createItchProvider, parseRef } from '../src/providers/itch';
 import {
   mapGame,
@@ -230,9 +231,14 @@ const routeFetch = (async (input: string | URL | Request) => {
 }) as typeof fetch;
 
 /** host services backed by a map for the keyring; no network */
-function fakeHost(store: Map<string, string>, fetchImpl: typeof fetch = routeFetch): HostServices {
+function fakeHost(
+  store: Map<string, string>,
+  fetchImpl: typeof fetch = routeFetch,
+  saved: Partial<Record<keyof PluginSettings, unknown>> = {},
+): HostServices {
   return {
     http: new HttpClient(fetchTransport(fetchImpl)),
+    settings: async () => readSettings(saved),
     secrets: {
       async get(key) {
         return store.get(key) ?? null;
@@ -318,5 +324,57 @@ describe('credentials', () => {
     const provider = createItchProvider(fakeHost(store));
     expect((await provider.clearCredential()).status).toBe('unconfigured');
     expect(store.has('apikey')).toBe(false);
+  });
+});
+
+describe('resolveFiles with settings', () => {
+  const UPLOADS_FOR_SETTINGS: ItchUpload[] = [
+    { id: 1, filename: 'Game-win.zip', created_at: '2026-01-01T00:00:00Z', traits: ['p_windows'] },
+    { id: 2, filename: 'Game-linux.zip', created_at: '2025-01-01T00:00:00Z', traits: ['p_linux'] },
+    { id: 3, filename: 'Game-Soundtrack.zip', created_at: '2026-02-01T00:00:00Z', traits: ['p_windows'] },
+  ];
+
+  const GAME_REF = {
+    source: 'itch',
+    sourceId: '2828037',
+    url: 'https://krasuepi.itch.io/hotpw',
+    title: 'Hot PW',
+    version: null,
+    updatedAt: null,
+    extra: { gameId: 2828037 },
+  };
+
+  function filesWith(saved: Partial<Record<keyof PluginSettings, unknown>>) {
+    const fetchUploads = (async (input: string | URL | Request) => {
+      const path = new URL(String(input)).pathname;
+      const body = path.endsWith('/uploads') ? { uploads: UPLOADS_FOR_SETTINGS } : { owned_keys: [] };
+      return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+    }) as typeof fetch;
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']]), fetchUploads, saved));
+    return provider.resolveFiles(GAME_REF).then((files) => files.map((file) => file.id));
+  }
+
+  test('defaults keep the newest-first order', async () => {
+    expect(await filesWith({})).toEqual(['itch-upload-3', 'itch-upload-1', 'itch-upload-2']);
+  });
+
+  test('preferredPlatform lists that platform first', async () => {
+    expect(await filesWith({ preferredPlatform: 'linux' })).toEqual([
+      'itch-upload-2',
+      'itch-upload-3',
+      'itch-upload-1',
+    ]);
+  });
+
+  test('preferredPlatform osx matches no file and keeps the order', async () => {
+    expect(await filesWith({ preferredPlatform: 'osx' })).toEqual([
+      'itch-upload-3',
+      'itch-upload-1',
+      'itch-upload-2',
+    ]);
+  });
+
+  test('skipSoundtracksAndExtras hides soundtrack files', async () => {
+    expect(await filesWith({ skipSoundtracksAndExtras: true })).toEqual(['itch-upload-1', 'itch-upload-2']);
   });
 });
