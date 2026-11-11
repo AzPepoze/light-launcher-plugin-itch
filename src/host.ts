@@ -13,6 +13,8 @@ export interface HostServices {
   /** outbound HTTP through the host: allow-listed, rate-limited and retried there */
   http: Pick<HttpClient, 'request' | 'json'>;
   secrets: HostClient['secrets'];
+  /** small per-plugin values kept between runs, such as cached results */
+  storage: Pick<HostClient['storage'], 'get' | 'set'>;
   /** read on each call, so a saved change applies at once */
   settings(): Promise<PluginSettings>;
   /** keep a raw page when parsing fails */

@@ -38,6 +38,7 @@ function createHostServices(host: HostClient): HostServices {
   return {
     http: new HttpClient(hostTransport(host), { maxBodyBytes: MAX_BODY_BYTES }),
     secrets: host.secrets,
+    storage: host.storage,
     settings: async () => readSettings(await host.settings.get()),
     dump(name, body) {
       writeLog(CATEGORY, 'debug', `parse dump skipped: ${name}`, { bytes: body.length });

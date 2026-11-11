@@ -236,9 +236,18 @@ function fakeHost(
   fetchImpl: typeof fetch = routeFetch,
   saved: Partial<Record<keyof PluginSettings, unknown>> = {},
 ): HostServices {
+  const cache = new Map<string, unknown>();
   return {
     http: new HttpClient(fetchTransport(fetchImpl)),
     settings: async () => readSettings(saved),
+    storage: {
+      async get(key) {
+        return cache.get(key) ?? null;
+      },
+      async set(key, value) {
+        cache.set(key, value);
+      },
+    },
     secrets: {
       async get(key) {
         return store.get(key) ?? null;
@@ -376,5 +385,79 @@ describe('resolveFiles with settings', () => {
 
   test('skipSoundtracksAndExtras hides soundtrack files', async () => {
     expect(await filesWith({ skipSoundtracksAndExtras: true })).toEqual(['itch-upload-1', 'itch-upload-2']);
+  });
+});
+
+/** answers the library and game routes from memory and counts every request */
+function countingFetch(): { fetch: typeof fetch; calls: () => number } {
+  let calls = 0;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    calls++;
+    const path = new URL(String(input)).pathname;
+    const body = path === '/profile/owned-keys' ? { owned_keys: [{ game_id: 2828037 }] } : jsonRoute(path);
+    return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+  return { fetch: fetchImpl, calls: () => calls };
+}
+
+const GAME_FOR_UPDATE = {
+  source: 'itch',
+  sourceId: '2828037',
+  url: 'https://krasuepi.itch.io/hotpw',
+  title: 'Hot PW',
+  version: null,
+  updatedAt: null,
+  extra: { gameId: 2828037 },
+};
+
+describe('sync and update checks with settings', () => {
+  test('syncOwnedGames off imports nothing and makes no request', async () => {
+    const counter = countingFetch();
+    const provider = createItchProvider(
+      fakeHost(new Map([['apikey', 'test-key']]), counter.fetch, { syncOwnedGames: false }),
+    );
+    expect(await provider.sync?.({})).toEqual([]);
+    expect(counter.calls()).toBe(0);
+  });
+
+  test('default sync imports every time', async () => {
+    const counter = countingFetch();
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']]), counter.fetch));
+    expect(await provider.sync?.({})).toHaveLength(1);
+    const afterFirst = counter.calls();
+    await provider.sync?.({});
+    expect(counter.calls()).toBeGreaterThan(afterFirst);
+  });
+
+  test('syncIntervalHours reuses the cached library inside the interval', async () => {
+    const counter = countingFetch();
+    const provider = createItchProvider(
+      fakeHost(new Map([['apikey', 'test-key']]), counter.fetch, { syncIntervalHours: 1 }),
+    );
+    const first = await provider.sync?.({});
+    const afterFirst = counter.calls();
+    const second = await provider.sync?.({});
+    expect(counter.calls()).toBe(afterFirst);
+    expect(second).toEqual(first);
+  });
+
+  test('updateCheckIntervalHours skips a game checked inside the interval', async () => {
+    const counter = countingFetch();
+    const provider = createItchProvider(
+      fakeHost(new Map([['apikey', 'test-key']]), counter.fetch, { updateCheckIntervalHours: 6 }),
+    );
+    expect((await provider.checkUpdate(GAME_FOR_UPDATE))?.version).toBe('0.7.3');
+    const afterFirst = counter.calls();
+    expect(await provider.checkUpdate(GAME_FOR_UPDATE)).toBeNull();
+    expect(counter.calls()).toBe(afterFirst);
+  });
+
+  test('default update check runs every time', async () => {
+    const counter = countingFetch();
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']]), counter.fetch));
+    await provider.checkUpdate(GAME_FOR_UPDATE);
+    const afterFirst = counter.calls();
+    await provider.checkUpdate(GAME_FOR_UPDATE);
+    expect(counter.calls()).toBeGreaterThan(afterFirst);
   });
 });

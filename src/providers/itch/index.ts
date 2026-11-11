@@ -46,6 +46,25 @@ import { preferredFilePlatform, type PreferredPlatform } from '../../settings';
 
 const SECRET_KEY = 'apikey';
 const MAX_SYNC_GAMES = 40;
+const LIBRARY_CACHE_KEY = 'library-cache';
+const UPDATE_CHECKED_PREFIX = 'update-checked:';
+const HOUR_MS = 60 * 60 * 1000;
+
+interface LibraryCache {
+  syncedAt: number;
+  games: GameDTO[];
+}
+
+function isLibraryCache(value: unknown): value is LibraryCache {
+  if (!value || typeof value !== 'object') return false;
+  const cache = value as Partial<LibraryCache>;
+  return typeof cache.syncedAt === 'number' && Array.isArray(cache.games);
+}
+
+/** true when a time stamp in ms is less than `hours` old */
+function isFresh(stampMs: number, hours: number): boolean {
+  return Date.now() - stampMs < hours * HOUR_MS;
+}
 
 export interface ItchProvider extends SourceProvider {
   readonly label: string;
@@ -204,6 +223,22 @@ export function createItchProvider(host: HostServices): ItchProvider {
   }
 
   async function checkUpdate(game: GameRef): Promise<UpdateInfo | null> {
+    const settings = await host.settings();
+    const stampKey = `${UPDATE_CHECKED_PREFIX}${game.sourceId}`;
+    if (await checkedRecently(stampKey, settings.updateCheckIntervalHours)) return null;
+    const update = await findUpdate(game);
+    if (settings.updateCheckIntervalHours > 0) await host.storage.set(stampKey, Date.now());
+    return update;
+  }
+
+  /** true when the game was checked less than `hours` ago. Always false when hours is 0. */
+  async function checkedRecently(stampKey: string, hours: number): Promise<boolean> {
+    if (hours <= 0) return false;
+    const last = await host.storage.get(stampKey);
+    return typeof last === 'number' && isFresh(last, hours);
+  }
+
+  async function findUpdate(game: GameRef): Promise<UpdateInfo | null> {
     const uploads = await fetchUploads(host, await gameIdOf(host, game), await requireKey());
     const newest = pickNewest(uploads);
     if (!newest) return null;
@@ -222,7 +257,27 @@ export function createItchProvider(host: HostServices): ItchProvider {
     };
   }
 
+  /** Returns no games when syncOwnedGames is off. Reuses the last import within syncIntervalHours. */
   async function sync(): Promise<GameDTO[]> {
+    const settings = await host.settings();
+    if (!settings.syncOwnedGames) return [];
+    const cached = await cachedLibrary(settings.syncIntervalHours);
+    if (cached) return cached;
+    const games = await importLibrary();
+    if (settings.syncIntervalHours > 0) {
+      await host.storage.set(LIBRARY_CACHE_KEY, { syncedAt: Date.now(), games });
+    }
+    return games;
+  }
+
+  async function cachedLibrary(hours: number): Promise<GameDTO[] | null> {
+    if (hours <= 0) return null;
+    const cache = await host.storage.get(LIBRARY_CACHE_KEY);
+    if (!isLibraryCache(cache) || !isFresh(cache.syncedAt, hours)) return null;
+    return cache.games;
+  }
+
+  async function importLibrary(): Promise<GameDTO[]> {
     const apiKey = await requireKey();
     const ids = await ownedGameIds(host, apiKey);
     if (!ids.length) {
