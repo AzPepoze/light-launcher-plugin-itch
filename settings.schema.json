@@ -4,6 +4,36 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "downloadRoot": {
+      "title": "Save downloads into",
+      "description": "The launcher's downloads folder, or its games folder.",
+      "type": "string",
+      "enum": ["downloads", "games"],
+      "default": "downloads",
+      "x-ll-group": "Downloads"
+    },
+    "gameSubfolder": {
+      "title": "Put each game in its own folder",
+      "description": "Make a folder named after the game inside the download folder.",
+      "type": "boolean",
+      "default": true,
+      "x-ll-group": "Downloads"
+    },
+    "installAfterDownload": {
+      "title": "Unpack the archive after download",
+      "description": "Unpack the downloaded archive into the games folder.",
+      "type": "boolean",
+      "default": false,
+      "x-ll-group": "Downloads"
+    },
+    "deleteArchiveAfterInstall": {
+      "title": "Delete the archive after install",
+      "description": "Remove the archive once it has been unpacked. Only applies when unpacking is on.",
+      "type": "boolean",
+      "default": false,
+      "x-ll-group": "Downloads",
+      "x-ll-advanced": true
+    },
     "preferredPlatform": {
       "title": "Preferred platform",
       "description": "Files for this platform are listed first. Other platforms stay in the list.",

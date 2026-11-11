@@ -25,7 +25,7 @@ describe('settings.schema.json', () => {
   });
 
   test('every setting has a title and a known group', () => {
-    const groups = ['Platform', 'Library', 'Updates', 'Network', 'Debug'];
+    const groups = ['Downloads', 'Platform', 'Library', 'Updates', 'Network', 'Debug'];
     for (const prop of Object.values(properties as Record<string, SettingSchema & { title?: string }>)) {
       expect(typeof prop.title).toBe('string');
       expect(groups).toContain(prop['x-ll-group'] ?? '');
@@ -49,12 +49,17 @@ describe('settings.schema.json', () => {
 
   test('enum settings list their default', () => {
     expect(properties.preferredPlatform.enum).toContain(properties.preferredPlatform.default);
+    expect(properties.downloadRoot.enum).toContain(properties.downloadRoot.default);
   });
 });
 
 describe('readSettings', () => {
   test('no saved values gives the defaults, which keep the old behaviour', () => {
     expect(readSettings({})).toEqual(DEFAULT_SETTINGS);
+    expect(DEFAULT_SETTINGS.downloadRoot).toBe('downloads');
+    expect(DEFAULT_SETTINGS.gameSubfolder).toBe(true);
+    expect(DEFAULT_SETTINGS.installAfterDownload).toBe(false);
+    expect(DEFAULT_SETTINGS.deleteArchiveAfterInstall).toBe(false);
     expect(DEFAULT_SETTINGS.preferredPlatform).toBe('any');
     expect(DEFAULT_SETTINGS.syncOwnedGames).toBe(true);
     expect(DEFAULT_SETTINGS.requestDelayMs).toBe(0);
@@ -63,6 +68,10 @@ describe('readSettings', () => {
 
   test('valid saved values are used', () => {
     const saved: PluginSettings = {
+      downloadRoot: 'games',
+      gameSubfolder: false,
+      installAfterDownload: true,
+      deleteArchiveAfterInstall: true,
       preferredPlatform: 'osx',
       skipSoundtracksAndExtras: true,
       syncOwnedGames: false,
@@ -79,6 +88,10 @@ describe('readSettings', () => {
   test('invalid saved values fall back to the default', () => {
     expect(
       readSettings({
+        downloadRoot: '/opt/steam',
+        gameSubfolder: 'yes',
+        installAfterDownload: 0,
+        deleteArchiveAfterInstall: null,
         preferredPlatform: 'amiga',
         skipSoundtracksAndExtras: 'yes',
         syncOwnedGames: 0,

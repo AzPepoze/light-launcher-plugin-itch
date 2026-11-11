@@ -3,12 +3,18 @@
  * default when it is missing or not valid. Defaults match settings.schema.json.
  */
 
-import type { Platform } from '@light-launcher/plugin-sdk/types';
+import type { DownloadRoot, Platform } from '@light-launcher/plugin-sdk/types';
 
 export const PREFERRED_PLATFORMS = ['any', 'windows', 'linux', 'osx'] as const;
 export type PreferredPlatform = (typeof PREFERRED_PLATFORMS)[number];
 
+export const DOWNLOAD_ROOTS = ['downloads', 'games'] as const;
+
 export interface PluginSettings {
+  downloadRoot: DownloadRoot;
+  gameSubfolder: boolean;
+  installAfterDownload: boolean;
+  deleteArchiveAfterInstall: boolean;
   preferredPlatform: PreferredPlatform;
   skipSoundtracksAndExtras: boolean;
   syncOwnedGames: boolean;
@@ -21,6 +27,10 @@ export interface PluginSettings {
 }
 
 export const DEFAULT_SETTINGS: Readonly<PluginSettings> = {
+  downloadRoot: 'downloads',
+  gameSubfolder: true,
+  installAfterDownload: false,
+  deleteArchiveAfterInstall: false,
   preferredPlatform: 'any',
   skipSoundtracksAndExtras: false,
   syncOwnedGames: true,
@@ -53,9 +63,20 @@ function platformOr(value: unknown, fallback: PreferredPlatform): PreferredPlatf
   return PREFERRED_PLATFORMS.find((option) => option === value) ?? fallback;
 }
 
+function downloadRootOr(value: unknown, fallback: DownloadRoot): DownloadRoot {
+  return DOWNLOAD_ROOTS.find((option) => option === value) ?? fallback;
+}
+
 /** Reads the saved values, using the default for anything missing or invalid. */
 export function readSettings(raw: Partial<Record<keyof PluginSettings, unknown>>): PluginSettings {
   return {
+    downloadRoot: downloadRootOr(raw.downloadRoot, DEFAULT_SETTINGS.downloadRoot),
+    gameSubfolder: booleanOr(raw.gameSubfolder, DEFAULT_SETTINGS.gameSubfolder),
+    installAfterDownload: booleanOr(raw.installAfterDownload, DEFAULT_SETTINGS.installAfterDownload),
+    deleteArchiveAfterInstall: booleanOr(
+      raw.deleteArchiveAfterInstall,
+      DEFAULT_SETTINGS.deleteArchiveAfterInstall,
+    ),
     preferredPlatform: platformOr(raw.preferredPlatform, DEFAULT_SETTINGS.preferredPlatform),
     skipSoundtracksAndExtras: booleanOr(raw.skipSoundtracksAndExtras, DEFAULT_SETTINGS.skipSoundtracksAndExtras),
     syncOwnedGames: booleanOr(raw.syncOwnedGames, DEFAULT_SETTINGS.syncOwnedGames),

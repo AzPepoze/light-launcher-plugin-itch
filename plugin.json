@@ -28,7 +28,7 @@
   },
   "permissions": {
     "network": ["itch.io", "*.itch.io", "*.itch.zone"],
-    "fs": ["$APPDATA_ITCH"],
+    "fs": ["$APPDATA_ITCH", "$GAMES"],
     "secrets": true
   }
 }

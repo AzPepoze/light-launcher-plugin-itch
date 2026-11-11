@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { fetchTransport, HttpClient } from '@light-launcher/plugin-sdk/helpers';
+import type { FileCandidate, GameRef } from '@light-launcher/plugin-sdk/types';
 import type { HostServices } from '../src/host';
 import { readSettings, type PluginSettings } from '../src/settings';
 import { createItchProvider, parseRef } from '../src/providers/itch';
@@ -301,6 +302,56 @@ describe('createItchProvider', () => {
       size: 1234,
       rangeHint: true,
       requiresAuth: false,
+    });
+  });
+});
+
+describe('prepareDownload with settings', () => {
+  const FILE: FileCandidate = {
+    id: 'itch-upload-202',
+    label: 'HotPW-v0.7.3-win.zip',
+    url: 'https://api.itch.io/uploads/202/download?api_key=test-key',
+    filename: 'HotPW-v0.7.3-win.zip',
+    size: 1234,
+    host: 'api.itch.io',
+    kind: 'direct',
+    platform: 'windows',
+    requiresAuth: false,
+    rangeHint: true,
+    headers: {},
+  };
+  const GAME: GameRef = {
+    source: 'itch',
+    sourceId: '2828037',
+    url: 'https://krasuepi.itch.io/hotpw',
+    title: 'Hot PW',
+    version: null,
+    updatedAt: null,
+    extra: { gameId: 2828037 },
+  };
+
+  test('returns the hints and reads the settings again on every call', async () => {
+    const saved: Partial<Record<keyof PluginSettings, unknown>> = {};
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']]), routeFetch, saved));
+
+    expect(await provider.prepareDownload(FILE, GAME, {})).toEqual({
+      url: FILE.url,
+      headers: {},
+      root: 'downloads',
+      subfolder: 'Hot PW',
+    });
+
+    saved.downloadRoot = 'games';
+    saved.installAfterDownload = true;
+    saved.deleteArchiveAfterInstall = true;
+    expect(await provider.prepareDownload(FILE, GAME, {})).toEqual({
+      url: FILE.url,
+      headers: {},
+      root: 'games',
+      subfolder: 'Hot PW',
+      install: true,
+      installSubfolder: 'Hot PW',
+      deleteArchive: true,
     });
   });
 });
