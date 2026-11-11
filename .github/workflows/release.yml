@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: build and publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: plugin
+    steps:
+      # Tags are needed for the release notes range.
+      - uses: actions/checkout@v4
+        with:
+          path: plugin
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/checkout@v4
+        with:
+          repository: AzPepoze/light-launcher-plugin-sdk
+          path: light-launcher-plugin-sdk
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Check tag matches plugin.json
+        run: |
+          version="$(bun -e 'process.stdout.write((await import("./plugin.json")).default.version)')"
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match plugin.json version $version"
+            exit 1
+          fi
+          id="$(bun -e 'process.stdout.write((await import("./plugin.json")).default.id)')"
+          echo "PLUGIN_ID=$id" >> "$GITHUB_ENV"
+          echo "PLUGIN_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Linux
+        run: bun run build:linux
+
+      - name: Build Windows
+        run: bun run build:windows
+
+      - name: Validate manifest
+        run: bun run validate
+
+      - name: Pack
+        run: bun run pack
+
+      - name: Check package
+        run: |
+          test "$(find dist -maxdepth 1 -name '*.llplugin' | wc -l)" -eq 1
+          test -f "dist/${PLUGIN_ID}-${PLUGIN_VERSION}.llplugin"
+
+      # Reserved for the planned signed packages. llp has no sign command yet.
+      - name: Sign package
+        env:
+          PLUGIN_SIGNING_KEY: ${{ secrets.PLUGIN_SIGNING_KEY }}
+        run: |
+          if [ -z "$PLUGIN_SIGNING_KEY" ]; then
+            echo "PLUGIN_SIGNING_KEY is not set. The release stays unsigned."
+            exit 0
+          fi
+          echo "::notice title=Unsigned release::PLUGIN_SIGNING_KEY is set, but llp has no sign command. Skipping signing."
+
+      - name: Write SHA256SUMS
+        run: |
+          cd dist
+          sha256sum -- *.llplugin > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Generate release notes
+        run: |
+          previous="$(git describe --tags --abbrev=0 --match 'v*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          if [ -n "$previous" ]; then
+            range="${previous}..${GITHUB_REF_NAME}"
+          else
+            range="${GITHUB_REF_NAME}"
+          fi
+          git log --no-merges --pretty=format:'%s' "$range" | bun scripts/release-notes.ts > "$RUNNER_TEMP/release-notes.md"
+          cat "$RUNNER_TEMP/release-notes.md"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/${PLUGIN_ID}-${PLUGIN_VERSION}.llplugin" \
+            dist/SHA256SUMS \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
