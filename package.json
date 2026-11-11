@@ -8,6 +8,8 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",
+    "validate": "llp validate",
+    "pack": "llp pack --out dist",
     "build:linux": "bun build --compile --target=bun-linux-x64 src/main.ts --outfile bin/linux-x64/itch",
     "build:windows": "bun build --compile --target=bun-windows-x64 src/main.ts --outfile bin/windows-x64/itch.exe"
   },
