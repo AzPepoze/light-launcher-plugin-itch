@@ -43,8 +43,8 @@ import {
   type ItchUpload,
   type UploadPlatform,
 } from './uploads';
-import { preferredFilePlatform, type PreferredPlatform } from '../../settings';
-import { downloadHints } from './downloads';
+import { downloadSettingsOf, preferredFilePlatform, type PreferredPlatform } from '../../settings';
+import { downloadHints } from '@light-launcher/plugin-sdk';
 
 const SECRET_KEY = 'apikey';
 const MAX_SYNC_GAMES = 40;
@@ -222,7 +222,7 @@ export function createItchProvider(host: HostServices): ItchProvider {
     game: GameRef,
   ): Promise<PrepareDownloadResult> {
     const settings = await host.settings();
-    return { url: file.url, headers: {}, ...downloadHints(settings, game) };
+    return { url: file.url, headers: {}, ...downloadHints(downloadSettingsOf(settings), game) };
   }
 
   async function checkUpdate(game: GameRef): Promise<UpdateInfo | null> {
@@ -326,4 +326,3 @@ export function createItchProvider(host: HostServices): ItchProvider {
 }
 
 export { parseItchRef as parseRef } from './library';
-export { downloadHints, sanitizeGameFolder } from './downloads';

@@ -3,7 +3,7 @@
  * default when it is missing or not valid. Defaults match settings.schema.json.
  */
 
-import type { DownloadRoot, Platform } from '@light-launcher/plugin-sdk/types';
+import type { DownloadRoot, DownloadSettings, Platform } from '@light-launcher/plugin-sdk/types';
 
 export const PREFERRED_PLATFORMS = ['any', 'windows', 'linux', 'osx'] as const;
 export type PreferredPlatform = (typeof PREFERRED_PLATFORMS)[number];
@@ -102,4 +102,14 @@ const PLATFORM_BY_SETTING: Record<Exclude<PreferredPlatform, 'any'>, Platform> =
 /** The file platform to list first, or null when the setting is "any". */
 export function preferredFilePlatform(setting: PreferredPlatform): Platform | null {
   return setting === 'any' ? null : PLATFORM_BY_SETTING[setting];
+}
+
+/** The four download settings, in the shape the SDK's downloadHints reads. */
+export function downloadSettingsOf(settings: PluginSettings): DownloadSettings {
+  return {
+    downloadRoot: settings.downloadRoot,
+    gameSubfolder: settings.gameSubfolder,
+    installAfterDownload: settings.installAfterDownload,
+    deleteArchiveAfterInstall: settings.deleteArchiveAfterInstall,
+  };
 }

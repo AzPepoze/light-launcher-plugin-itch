@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { downloadSettingsSchemaProperties } from '@light-launcher/plugin-sdk';
 import schemaFile from '../settings.schema.json';
 import { DEFAULT_SETTINGS, readSettings, type PluginSettings } from '../src/settings';
 
@@ -12,6 +13,18 @@ type SettingSchema = {
 };
 
 const properties = schemaFile.properties as Record<string, SettingSchema>;
+const DOWNLOAD_KEYS = ['downloadRoot', 'gameSubfolder', 'installAfterDownload', 'deleteArchiveAfterInstall'];
+
+/** The parts of a setting that must match the SDK. Titles and descriptions may differ. */
+function structureOf(prop: Record<string, unknown>) {
+  return {
+    type: prop.type,
+    enum: prop.enum ?? null,
+    default: prop.default,
+    group: prop['x-ll-group'],
+    advanced: prop['x-ll-advanced'] === true,
+  };
+}
 
 describe('settings.schema.json', () => {
   test('every setting has a default that equals DEFAULT_SETTINGS', () => {
@@ -50,6 +63,14 @@ describe('settings.schema.json', () => {
   test('enum settings list their default', () => {
     expect(properties.preferredPlatform.enum).toContain(properties.preferredPlatform.default);
     expect(properties.downloadRoot.enum).toContain(properties.downloadRoot.default);
+  });
+
+  test('download settings match the SDK schema structurally', () => {
+    for (const key of DOWNLOAD_KEYS) {
+      expect(structureOf(properties[key] as Record<string, unknown>)).toEqual(
+        structureOf(downloadSettingsSchemaProperties[key]),
+      );
+    }
   });
 });
 
