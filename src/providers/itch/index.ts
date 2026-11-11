@@ -11,6 +11,8 @@ import type {
   FileCandidate,
   GameDTO,
   GameRef,
+  ListGamesParams,
+  ListGamesResult,
   Platform,
   PrepareDownloadResult,
   Ref,
@@ -51,6 +53,8 @@ const MAX_SYNC_GAMES = 40;
 const LIBRARY_CACHE_KEY = 'library-cache';
 const UPDATE_CHECKED_PREFIX = 'update-checked:';
 const HOUR_MS = 60 * 60 * 1000;
+/** How long the owned game ids are reused while the launcher pages through the list */
+const OWNED_IDS_TTL_MS = 10 * 60 * 1000;
 
 interface LibraryCache {
   syncedAt: number;
@@ -72,6 +76,7 @@ export interface ItchProvider extends SourceProvider {
   readonly label: string;
   /** stores a key without checking it online */
   importCredential(value: string): Promise<void>;
+  listGames(params: ListGamesParams): Promise<ListGamesResult>;
 }
 
 function toPlatform(platform: UploadPlatform): Platform {
@@ -118,6 +123,13 @@ function isItchUrl(url: string): boolean {
   }
 }
 
+/** The listing cursor is the offset of the next owned game. Missing means the first page. */
+function offsetOf(cursor: string | undefined): number {
+  if (cursor === undefined) return 0;
+  if (!/^\d+$/.test(cursor)) throw new Error(`invalid listGames cursor: ${cursor}`);
+  return Number(cursor);
+}
+
 function unconfigured(): AuthState {
   return { status: 'unconfigured', checkedAt: new Date().toISOString() };
 }
@@ -137,9 +149,20 @@ export function createItchProvider(host: HostServices): ItchProvider {
     return apiKey;
   }
 
+  /** owned game ids, reused for OWNED_IDS_TTL_MS so the pages of one listing share one walk */
+  let ownedCache: { at: number; ids: number[] } | null = null;
+
+  async function ownedIds(apiKey: string): Promise<number[]> {
+    if (ownedCache && Date.now() - ownedCache.at < OWNED_IDS_TTL_MS) return ownedCache.ids;
+    const ids = await ownedGameIds(host, apiKey);
+    ownedCache = { at: Date.now(), ids };
+    return ids;
+  }
+
   async function storeKey(value: string): Promise<void> {
     await host.secrets.set(SECRET_KEY, value);
     key = value;
+    ownedCache = null;
   }
 
   async function authStatus(): Promise<AuthState> {
@@ -159,6 +182,7 @@ export function createItchProvider(host: HostServices): ItchProvider {
   async function clearCredential(): Promise<AuthState> {
     await host.secrets.delete(SECRET_KEY);
     key = null;
+    ownedCache = null;
     return unconfigured();
   }
 
@@ -273,6 +297,30 @@ export function createItchProvider(host: HostServices): ItchProvider {
     return games;
   }
 
+  /**
+   * One page of the owned games. Each game costs two API calls, so a game that fails is
+   * skipped, but the cursor still moves past it.
+   */
+  async function listGames({ cursor, limit }: ListGamesParams): Promise<ListGamesResult> {
+    const apiKey = await requireKey();
+    const ids = await ownedIds(apiKey);
+    const start = offsetOf(cursor);
+    const pageIds = ids.slice(start, start + limit);
+
+    const games: GameDTO[] = [];
+    for (const id of pageIds) {
+      try {
+        games.push(await fetchOwnedGame(id, apiKey));
+      } catch (err) {
+        host.log('warn', `itch.io list skipped game ${id}`, errorMessage(err));
+      }
+    }
+
+    const next = start + pageIds.length;
+    const nextCursor = next < ids.length ? String(next) : undefined;
+    return { games, total: ids.length, nextCursor };
+  }
+
   async function cachedLibrary(hours: number): Promise<GameDTO[] | null> {
     if (hours <= 0) return null;
     const cache = await host.storage.get(LIBRARY_CACHE_KEY);
@@ -315,6 +363,7 @@ export function createItchProvider(host: HostServices): ItchProvider {
       updateCheck: true,
       resolveFiles: true,
       versioned: true,
+      listGames: true,
     },
     parseRef: parseItchRef,
     authStatus,
@@ -327,6 +376,7 @@ export function createItchProvider(host: HostServices): ItchProvider {
     prepareDownload,
     checkUpdate,
     sync,
+    listGames,
   };
 }
 

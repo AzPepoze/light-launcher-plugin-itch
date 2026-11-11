@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { fetchTransport, HttpClient } from '@light-launcher/plugin-sdk/helpers';
-import type { FileCandidate, GameRef } from '@light-launcher/plugin-sdk/types';
+import type { FileCandidate, GameDTO, GameRef } from '@light-launcher/plugin-sdk/types';
 import type { HostServices } from '../src/host';
 import { readSettings, type PluginSettings } from '../src/settings';
 import { createItchProvider, parseRef } from '../src/providers/itch';
@@ -510,5 +510,119 @@ describe('sync and update checks with settings', () => {
     const afterFirst = counter.calls();
     await provider.checkUpdate(GAME_FOR_UPDATE);
     expect(counter.calls()).toBeGreaterThan(afterFirst);
+  });
+});
+
+describe('listGames', () => {
+  /** answers an owned list of `ids` and one game per id; ids in `missing` return 404 */
+  function libraryFetch(ids: number[], missing: number[] = []): { fetch: typeof fetch; paths: string[] } {
+    const paths: string[] = [];
+    const fetchImpl = (async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      paths.push(url.pathname);
+      if (url.pathname === '/profile/owned-keys') {
+        const page = Number(url.searchParams.get('page') ?? '1');
+        const owned = page === 1 ? ids.map((id) => ({ game_id: id })) : [];
+        return Response.json({ owned_keys: owned });
+      }
+      const gameMatch = url.pathname.match(/^\/games\/(\d+)$/);
+      if (gameMatch) {
+        const id = Number(gameMatch[1]);
+        if (missing.includes(id)) return new Response('{}', { status: 404 });
+        return Response.json({ game: { ...SAMPLE_GAME, id, title: `Game ${id}` } });
+      }
+      if (/^\/games\/\d+\/uploads$/.test(url.pathname)) return Response.json(UPLOAD_JSON);
+      return Response.json(jsonRoute(url.pathname));
+    }) as typeof fetch;
+    return { fetch: fetchImpl, paths };
+  }
+
+  const page = (cursor: string | undefined, limit: number) => ({
+    source: 'itch',
+    scope: 'mine' as const,
+    cursor,
+    limit,
+  });
+
+  test('is declared as a capability', () => {
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']])));
+    expect(provider.capabilities.listGames).toBe(true);
+  });
+
+  test('returns games shaped like the sync output', async () => {
+    const { fetch } = libraryFetch([7]);
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']]), fetch));
+    const listed = await provider.listGames(page(undefined, 10));
+    const synced = (await provider.sync?.({})) as GameDTO[];
+    expect(listed.games).toEqual(synced);
+    expect(listed.games[0]).toMatchObject({ source: 'itch', sourceId: '7', title: 'Game 7' });
+  });
+
+  test('pages through every owned game with the cursor', async () => {
+    const { fetch } = libraryFetch([1, 2, 3, 4, 5]);
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']]), fetch));
+
+    const first = await provider.listGames(page(undefined, 2));
+    expect(first.games.map((g) => g.sourceId)).toEqual(['1', '2']);
+    expect(first.total).toBe(5);
+    expect(first.nextCursor).toBe('2');
+
+    const second = await provider.listGames(page(first.nextCursor, 2));
+    expect(second.games.map((g) => g.sourceId)).toEqual(['3', '4']);
+    expect(second.nextCursor).toBe('4');
+
+    const last = await provider.listGames(page(second.nextCursor, 2));
+    expect(last.games.map((g) => g.sourceId)).toEqual(['5']);
+    expect(last.nextCursor).toBeUndefined();
+  });
+
+  test('never returns more games than the limit', async () => {
+    const { fetch } = libraryFetch([1, 2, 3]);
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']]), fetch));
+    expect((await provider.listGames(page(undefined, 1))).games).toHaveLength(1);
+  });
+
+  test('a game that fails is skipped, and the cursor still moves past it', async () => {
+    const { fetch } = libraryFetch([1, 2, 3], [2]);
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']]), fetch));
+
+    const failing = await provider.listGames(page('1', 1));
+    expect(failing.games).toEqual([]);
+    expect(failing.nextCursor).toBe('2');
+
+    const rest = await provider.listGames(page(failing.nextCursor, 5));
+    expect(rest.games.map((g) => g.sourceId)).toEqual(['3']);
+    expect(rest.nextCursor).toBeUndefined();
+  });
+
+  test('walks the owned list once for the pages of one listing', async () => {
+    const { fetch, paths } = libraryFetch([1, 2, 3]);
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']]), fetch));
+
+    await provider.listGames(page(undefined, 1));
+    const ownedCalls = paths.filter((p) => p === '/profile/owned-keys').length;
+    await provider.listGames(page('1', 1));
+    expect(paths.filter((p) => p === '/profile/owned-keys').length).toBe(ownedCalls);
+  });
+
+  test('a new key drops the cached owned list', async () => {
+    const { fetch, paths } = libraryFetch([1]);
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']]), fetch));
+    await provider.listGames(page(undefined, 10));
+    const before = paths.filter((p) => p === '/profile/owned-keys').length;
+    await provider.importCredential('other-key');
+    await provider.listGames(page(undefined, 10));
+    expect(paths.filter((p) => p === '/profile/owned-keys').length).toBeGreaterThan(before);
+  });
+
+  test('rejects a cursor that is not a number', async () => {
+    const { fetch } = libraryFetch([1]);
+    const provider = createItchProvider(fakeHost(new Map([['apikey', 'test-key']]), fetch));
+    await expect(provider.listGames(page('abc', 10))).rejects.toThrow('invalid listGames cursor');
+  });
+
+  test('fails with the missing key message when no key is saved', async () => {
+    const provider = createItchProvider(fakeHost(new Map()));
+    await expect(provider.listGames(page(undefined, 10))).rejects.toThrow('API key is not configured');
   });
 });
