@@ -16,6 +16,7 @@ The manifest is `plugin.json` in the repo root. Light Launcher reads it before i
 | `entry.linux-x64` | `bin/linux-x64/itch` | Program for 64-bit Linux |
 | `entry.windows-x64` | `bin/windows-x64/itch.exe` | Program for 64-bit Windows |
 | `contributes.sources` | One source, `itch` | The game source the plugin adds |
+| `contributes.settings` | `{ "$ref": "settings.schema.json" }` | The settings form. See [Settings](settings.md) |
 | `contributes.commands` | `import-desktop-key` | An action in the command palette |
 | `permissions` | See below | What the plugin may use |
 

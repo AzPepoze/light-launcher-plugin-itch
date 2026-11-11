@@ -39,6 +39,7 @@ bun run build:linux
 
 | Topic | Page |
 |---|---|
+| Settings | [docs/settings.md](docs/settings.md) |
 | Build and output files | [docs/build.md](docs/build.md) |
 | RPC methods and errors | [docs/protocol.md](docs/protocol.md) |
 | Manifest fields | [docs/manifest.md](docs/manifest.md) |

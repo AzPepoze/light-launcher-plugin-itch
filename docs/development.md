@@ -23,6 +23,10 @@ parent/
 | `src/logger.ts` | Colored logs on stderr |
 | `src/providers/itch/` | itch.io API, parsing, library and upload rules |
 | `src/library/itch-key.ts` | Reads the API key from the itch desktop app |
+| `src/settings.ts` | Reads saved settings, with defaults. See [Settings](settings.md) |
+| `src/http.ts` | Applies the request delay and user agent to every request |
+| `src/dump.ts` | Saves raw pages to the dump folder |
+| `settings.schema.json` | The settings form. Defaults must match `src/settings.ts` |
 | `tests/` | Unit tests, a manifest schema check and a stdio test |
 
 The protocol runtime, HTTP client and HTML helpers come from `@light-launcher/plugin-sdk`. See [Protocol](protocol.md).
@@ -44,6 +48,9 @@ The protocol runtime, HTTP client and HTML helpers come from `@light-launcher/pl
 | `manifest.test.ts` | `plugin.json` against the SDK schema. Skipped with a message when ajv is missing |
 | `stdio.test.ts` | Runs the plugin as a child process and talks to it over stdio |
 | `logger.test.ts` | Log colors and category colors |
+| `settings.test.ts` | Settings schema, defaults and invalid values |
+| `http.test.ts` | Request delay and user agent |
+| `debug.test.ts` | Verbose logging and the dump writer |
 
 ## Known gaps
 
