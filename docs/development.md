@@ -14,6 +14,10 @@ parent/
 
 `bun install` copies the SDK into `node_modules`. After you change the SDK, run `bun install` again.
 
+## CI
+
+The workflows check out [AzPepoze/light-launcher-plugin-sdk](https://github.com/AzPepoze/light-launcher-plugin-sdk) next to the plugin before `bun install`, because the SDK is a local `file:` dependency. This step goes away when the SDK is published.
+
 ## Layout
 
 | Path | Contents |
@@ -37,6 +41,8 @@ The protocol runtime, HTTP client and HTML helpers come from `@light-launcher/pl
 |---|---|
 | `bun test` | Run all tests |
 | `bun run typecheck` | Check types with `tsc` |
+| `bun run validate` | Check `plugin.json` with `llp` |
+| `bun run pack` | Pack `dist/<id>-<version>.llplugin` |
 | `bun run build:linux` | Build the Linux program |
 | `bun run build:windows` | Build the Windows program |
 
