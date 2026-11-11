@@ -25,13 +25,15 @@ The message rules and typed params come from the `@light-launcher/plugin-sdk` pa
 | `source.search` | `source`, `url?`, `query?`, `page?` | `{ games }`. Empty unless `url` is an itch.io address |
 | `source.fetchGame` | `source`, `ref` | `{ game }` |
 | `source.resolveFiles` | `source`, `game` | `{ files }` |
-| `source.prepareDownload` | `source`, `file`, `game` | `{ url, headers }` |
+| `source.prepareDownload` | `source`, `file`, `game` | `{ url, headers, root?, subfolder?, install?, installSubfolder?, deleteArchive? }` |
 | `source.checkUpdate` | `source`, `game` | `{ update }`. `update` is `null` when nothing changed |
 | `source.sync` | `source` | `GameDTO[]`, the games you own (`sync:games`) |
 | `itch.importDesktopKey` | none | `{ found }`. Copies the key from the itch desktop app |
 | `shutdown` | none | `null`. The plugin then exits |
 
 Call `initialize` first. Other methods fail until it runs.
+
+`source.prepareDownload` also returns the download settings as hints: `root` (`downloads` or `games`), `subfolder`, `install`, `installSubfolder` and `deleteArchive`. The host checks them the same way as `downloads.enqueue`, including the `$GAMES` permission, and queues the file. See [Settings](settings.md#downloads).
 
 ## Credentials
 

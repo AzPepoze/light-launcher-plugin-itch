@@ -45,7 +45,7 @@ The manifest is `plugin.json` in the repo root. Light Launcher reads it before i
 |---|---|---|
 | `network` | `itch.io`, `*.itch.io`, `*.itch.zone` | Calls to itch.io and its download hosts |
 | `secrets` | `true` | Saves the API key in the host keyring |
-| `fs` | `$APPDATA_ITCH` | Reads the API key from the itch desktop app data folder |
+| `fs` | `$APPDATA_ITCH`, `$GAMES` | Reads the API key from the itch desktop app data folder. `$GAMES` lets the launcher save into the games folder and unpack a download there |
 
 ### The itch app folder
 

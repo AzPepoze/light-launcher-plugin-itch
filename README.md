@@ -35,6 +35,14 @@ bun run build:linux
 | sync:games | Imports the games you own |
 | Import key | Copies the API key from the itch desktop app |
 
+## Permissions
+
+| Permission | Why |
+|---|---|
+| `network` | Calls itch.io and its download hosts |
+| `secrets` | Saves the API key in the host keyring |
+| `fs` | Reads the itch app folder for the key, and uses `$GAMES` when downloads go to the games folder or are unpacked there |
+
 ## More
 
 | Topic | Page |

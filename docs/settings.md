@@ -6,6 +6,23 @@ Settings change how the plugin talks to itch.io and what it shows. Open them in 
 
 The form is built from [settings.schema.json](../settings.schema.json).
 
+## Downloads
+
+The launcher has two places for downloads: its downloads folder and its games folder. These settings pick one of them, plus a folder inside it. The plugin cannot name an absolute folder; the launcher owns those paths. The plugin reads the settings on each download, so a change applies without a restart.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `downloadRoot` | `downloads` | Saves into the launcher's downloads folder, or its games folder |
+| `gameSubfolder` | on | Gives each game its own folder, named from the game title |
+| `installAfterDownload` | off | Unpacks the archive into the games folder after the download |
+| `deleteArchiveAfterInstall` | off | Removes the archive after a good unpack. Only applies when unpacking is on |
+
+> [!NOTE]
+> The game folder is one safe path segment: characters a file system rejects are removed, leading dots and spaces are dropped, and the name is capped in length. A title with nothing usable left becomes `game`.
+
+> [!IMPORTANT]
+> The games folder and unpacking need the `$GAMES` permission. The plugin asks for it in `plugin.json`.
+
 ## Platform
 
 | Setting | Default | What it does |
@@ -52,8 +69,6 @@ These settings are not in the plugin, because the launcher decides them:
 
 | Idea | Why |
 |---|---|
-| Download folder, subfolders | The launcher picks the download folder. The plugin cannot pass a folder when it starts a download |
-| Install after download, delete archive | The launcher runs these steps. The plugin cannot set them |
 | Only import favourites | itch.io has no favourites in its API. Collections exist, but they are not the same thing |
 | Include bundle and key games | itch.io's owned-keys list does not say which keys come from a bundle |
 | Upload type filter | itch.io documents only the `default` upload type |

@@ -55,6 +55,7 @@ The protocol runtime, HTTP client and HTML helpers come from `@light-launcher/pl
 | `stdio.test.ts` | Runs the plugin as a child process and talks to it over stdio |
 | `logger.test.ts` | Log colors and category colors |
 | `settings.test.ts` | Settings schema, defaults and invalid values |
+| `downloads.test.ts` | Download hints, game folder names and defaults |
 | `http.test.ts` | Request delay and user agent |
 | `debug.test.ts` | Verbose logging and the dump writer |
 
