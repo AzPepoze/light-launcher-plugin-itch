@@ -41,6 +41,7 @@ bun run build:linux
 |---|---|
 | Settings | [docs/settings.md](docs/settings.md) |
 | Build and output files | [docs/build.md](docs/build.md) |
+| Cutting a release | [docs/releasing.md](docs/releasing.md) |
 | RPC methods and errors | [docs/protocol.md](docs/protocol.md) |
 | Manifest fields | [docs/manifest.md](docs/manifest.md) |
 | Code layout, tests, known gaps | [docs/development.md](docs/development.md) |
