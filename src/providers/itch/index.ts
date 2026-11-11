@@ -291,14 +291,19 @@ export function createItchProvider(host: HostServices): ItchProvider {
     const games: GameDTO[] = [];
     for (const id of ids.slice(0, MAX_SYNC_GAMES)) {
       try {
-        const payload = await fetchGamePayload(host, id, apiKey);
-        const uploads = await fetchUploads(host, id, apiKey);
-        games.push(mapGame(payload, { upload: pickNewest(uploads) }));
+        games.push(await fetchOwnedGame(id, apiKey));
       } catch (err) {
         host.log('warn', `itch.io sync skipped game ${id}`, errorMessage(err));
       }
     }
     return games;
+  }
+
+  /** One owned game as a GameDTO: its page payload plus the newest upload. Throws when either call fails. */
+  async function fetchOwnedGame(id: number, apiKey: string): Promise<GameDTO> {
+    const payload = await fetchGamePayload(host, id, apiKey);
+    const uploads = await fetchUploads(host, id, apiKey);
+    return mapGame(payload, { upload: pickNewest(uploads) });
   }
 
   return {
