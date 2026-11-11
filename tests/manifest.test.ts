@@ -22,4 +22,8 @@ describe('plugin.json', () => {
     expect(validate.errors ?? []).toEqual([]);
     expect(valid).toBe(true);
   });
+
+  test('points settings at the root settings schema', () => {
+    expect(manifest.contributes.settings).toEqual({ $ref: 'settings.schema.json' });
+  });
 });

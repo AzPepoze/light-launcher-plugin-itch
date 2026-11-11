@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "itch.io settings",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "preferredPlatform": {
+      "title": "Preferred platform",
+      "description": "Files for this platform are listed first. Other platforms stay in the list.",
+      "type": "string",
+      "enum": ["any", "windows", "linux", "osx"],
+      "default": "any",
+      "x-ll-group": "Platform"
+    },
+    "skipSoundtracksAndExtras": {
+      "title": "Skip soundtracks and extras",
+      "description": "Hide files whose name says soundtrack or OST.",
+      "type": "boolean",
+      "default": false,
+      "x-ll-group": "Platform"
+    },
+    "syncOwnedGames": {
+      "title": "Import owned games",
+      "description": "Import the games in your itch.io library. Turn off to import nothing.",
+      "type": "boolean",
+      "default": true,
+      "x-ll-group": "Library"
+    },
+    "syncIntervalHours": {
+      "title": "Library cache (hours)",
+      "description": "Reuse the last library import for this many hours. 0 always re-imports.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 720,
+      "default": 0,
+      "x-ll-group": "Library"
+    },
+    "updateCheckIntervalHours": {
+      "title": "Update check interval (hours)",
+      "description": "Skip a game's update check if it was checked this recently. 0 always checks.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 720,
+      "default": 0,
+      "x-ll-group": "Updates"
+    },
+    "requestDelayMs": {
+      "title": "Delay between requests (ms)",
+      "description": "Wait this long between requests to itch.io. 0 sends them without a wait.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000,
+      "default": 0,
+      "x-ll-group": "Network"
+    },
+    "userAgent": {
+      "title": "User agent",
+      "description": "Browser identity sent with requests. Leave empty for the default.",
+      "type": "string",
+      "default": "",
+      "x-ll-group": "Network",
+      "x-ll-advanced": true
+    },
+    "verboseLogging": {
+      "title": "Verbose logging",
+      "description": "Write debug messages to the log.",
+      "type": "boolean",
+      "default": false,
+      "x-ll-group": "Debug"
+    },
+    "dumpDir": {
+      "title": "Dump folder",
+      "description": "Save raw pages here when a page cannot be read. Leave empty to save nothing.",
+      "type": "string",
+      "default": "",
+      "x-ll-group": "Debug",
+      "x-ll-widget": "folder",
+      "x-ll-advanced": true
+    }
+  }
+}

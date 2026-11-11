@@ -16,6 +16,7 @@
         "capabilities": ["browse", "auth", "updateCheck", "resolveFiles", "sync:games"]
       }
     ],
+    "settings": { "$ref": "settings.schema.json" },
     "commands": [
       {
         "id": "import-desktop-key",
