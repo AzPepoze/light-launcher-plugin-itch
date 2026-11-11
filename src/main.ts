@@ -14,7 +14,8 @@ import {
 import type { InitializeParams, InitializeResult } from '@light-launcher/plugin-sdk/types';
 import { readItchApiKey } from './library/itch-key';
 import type { HostServices } from './host';
-import { writeLog } from './logger';
+import { setVerboseLogging, writeLog } from './logger';
+import { writeDump } from './dump';
 import { createItchProvider, type ItchProvider } from './providers/itch';
 import { createNetworkHttp } from './http';
 import { readSettings, type PluginSettings } from './settings';
@@ -45,8 +46,26 @@ async function loadSettings(host: HostClient): Promise<PluginSettings> {
   }
 }
 
+/** Saves the page when a dump folder is set. Failures are logged, never thrown. */
+function dumpPage(settings: () => Promise<PluginSettings>, name: string, body: string): void {
+  void settings()
+    .then(async (current) => {
+      if (!current.dumpDir) {
+        writeLog(CATEGORY, 'debug', `parse dump skipped: ${name}`, { bytes: body.length });
+        return;
+      }
+      const file = await writeDump(current.dumpDir, name, body);
+      writeLog(CATEGORY, 'info', `saved raw page: ${file}`);
+    })
+    .catch((err) => writeLog(CATEGORY, 'warn', `could not save raw page ${name}`, String(err)));
+}
+
 function createHostServices(host: HostClient): HostServices {
-  const settings = () => loadSettings(host);
+  const settings = async () => {
+    const current = await loadSettings(host);
+    setVerboseLogging(current.verboseLogging);
+    return current;
+  };
   const client = new HttpClient(hostTransport(host), { maxBodyBytes: MAX_BODY_BYTES });
   return {
     http: createNetworkHttp(client, settings),
@@ -54,7 +73,7 @@ function createHostServices(host: HostClient): HostServices {
     storage: host.storage,
     settings,
     dump(name, body) {
-      writeLog(CATEGORY, 'debug', `parse dump skipped: ${name}`, { bytes: body.length });
+      dumpPage(settings, name, body);
     },
     log(level, msg, extra) {
       writeLog(CATEGORY, level, msg, extra);

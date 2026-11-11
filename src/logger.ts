@@ -69,6 +69,17 @@ function formatExtra(extra: unknown): string {
   }
 }
 
+let verbose = false;
+
+/** Debug lines are written only when verbose logging is on. */
+export function setVerboseLogging(on: boolean): void {
+  verbose = on;
+}
+
+function isShown(level: LogLevel): boolean {
+  return level !== 'debug' || verbose;
+}
+
 /** writes one line per call, so concurrent requests never interleave */
 export function writeLog(
   category: string,
@@ -76,6 +87,7 @@ export function writeLog(
   message: string,
   extra?: unknown,
 ): void {
+  if (!isShown(level)) return;
   const style = LEVEL_STYLE[level];
   const time = paint(new Date().toISOString(), DIM);
   const label = paint(style.label, style.code);
