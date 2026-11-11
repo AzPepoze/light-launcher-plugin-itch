@@ -16,7 +16,8 @@ import { readItchApiKey } from './library/itch-key';
 import type { HostServices } from './host';
 import { writeLog } from './logger';
 import { createItchProvider, type ItchProvider } from './providers/itch';
-import { readSettings } from './settings';
+import { createNetworkHttp } from './http';
+import { readSettings, type PluginSettings } from './settings';
 
 const CATEGORY = 'itch';
 /** Responses are small JSON or game pages. Anything bigger is not from the itch API. */
@@ -34,12 +35,24 @@ function requireProvider(): ItchProvider {
   return provider;
 }
 
+/** Saved settings with defaults applied. A failed read logs a warning and uses the defaults. */
+async function loadSettings(host: HostClient): Promise<PluginSettings> {
+  try {
+    return readSettings(await host.settings.get());
+  } catch (err) {
+    writeLog(CATEGORY, 'warn', 'could not read settings, using defaults', String(err));
+    return readSettings({});
+  }
+}
+
 function createHostServices(host: HostClient): HostServices {
+  const settings = () => loadSettings(host);
+  const client = new HttpClient(hostTransport(host), { maxBodyBytes: MAX_BODY_BYTES });
   return {
-    http: new HttpClient(hostTransport(host), { maxBodyBytes: MAX_BODY_BYTES }),
+    http: createNetworkHttp(client, settings),
     secrets: host.secrets,
     storage: host.storage,
-    settings: async () => readSettings(await host.settings.get()),
+    settings,
     dump(name, body) {
       writeLog(CATEGORY, 'debug', `parse dump skipped: ${name}`, { bytes: body.length });
     },

@@ -78,7 +78,7 @@ function startPlugin(hostReplies: Record<string, HostReply>) {
   };
 }
 
-const NO_KEY = { 'secrets.get': () => ({ value: null }) };
+const NO_KEY = { 'secrets.get': () => ({ value: null }), 'settings.get': () => ({ settings: {} }) };
 
 async function withPlugin(hostReplies: Record<string, HostReply>, body: (plugin: ReturnType<typeof startPlugin>) => Promise<void>) {
   const plugin = startPlugin(hostReplies);
@@ -125,6 +125,7 @@ describe('plugin over stdio', () => {
     const calls: Json[] = [];
     const replies: Record<string, HostReply> = {
       'secrets.get': () => ({ value: 'stored-key' }),
+      'settings.get': () => ({ settings: {} }),
       'http.request': (params) => {
         calls.push(params);
         return { status: 401, url: params.url, text: '', headers: {}, notModified: false };
@@ -136,6 +137,18 @@ describe('plugin over stdio', () => {
       expect(reply.result.status).toBe('invalid');
       expect(calls).toHaveLength(1);
       expect(calls[0].url).toContain('https://api.itch.io/profile');
+    });
+  }, 15_000);
+
+  test('a failed settings read still answers with the defaults', () => {
+    const replies: Record<string, HostReply> = {
+      'secrets.get': () => ({ value: 'stored-key' }),
+      'http.request': (params) => ({ status: 401, url: params.url, text: '', headers: {}, notModified: false }),
+    };
+    return withPlugin(replies, async (plugin) => {
+      await plugin.call('initialize', {});
+      const reply = await plugin.call('source.authStatus', { source: 'itch' });
+      expect(reply.result.status).toBe('invalid');
     });
   }, 15_000);
 
