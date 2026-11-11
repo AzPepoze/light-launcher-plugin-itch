@@ -2,6 +2,7 @@
   "id": "itch",
   "name": "itch.io",
   "version": "0.1.0",
+  "repository": "github:AzPepoze/light-launcher-plugin-itch",
   "apiVersion": "1",
   "minHost": "2.0.0",
   "entry": {
