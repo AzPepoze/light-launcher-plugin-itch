@@ -22,6 +22,7 @@ bun run build:linux
 | Typecheck | `bun run typecheck` | Checks types |
 | Build for Linux | `bun run build:linux` | `bin/linux-x64/itch` |
 | Build for Windows | `bun run build:windows` | `bin/windows-x64/itch.exe` |
+| Build for Windows | `bun run build:windows` | `bin/windows-x64/itch.exe` |
 
 ## What it can do
 
