@@ -78,9 +78,33 @@ describe('parseRef', () => {
     });
   });
 
+  test('ignores query strings and a trailing slash', () => {
+    expect(parseRef('https://itch.io/games/2828037/?src=search')?.id).toBe('2828037');
+    expect(parseRef('https://krasuepi.itch.io/hotpw/?ref=home')?.id).toBe('krasuepi/hotpw');
+  });
+
   test('rejects other hosts', () => {
     expect(parseRef('https://example.com/games/123')).toBeNull();
+    expect(parseRef('https://itch.io.evil.com/games/123')).toBeNull();
+    expect(parseRef('https://example.com/krasuepi.itch.io/hotpw')).toBeNull();
+  });
+
+  test('rejects unknown shapes', () => {
+    expect(parseRef('https://itch.io/')).toBeNull();
+    expect(parseRef('https://itch.io/krasuepi/hotpw')).toBeNull();
+    expect(parseRef('https://itch.io/games/')).toBeNull();
+    expect(parseRef('https://itch.io/games/12x')).toBeNull();
+    expect(parseRef('https://krasuepi.itch.io/')).toBeNull();
+    expect(parseRef('https://krasuepi.itch.io/hotpw/devlog')).toBeNull();
+    expect(parseRef('https://foo.bar.itch.io/hotpw')).toBeNull();
+    expect(parseRef('https://api.itch.io/games/123')).toBeNull();
+  });
+
+  test('rejects empty and junk input', () => {
     expect(parseRef('')).toBeNull();
+    expect(parseRef('   ')).toBeNull();
+    expect(parseRef('junk')).toBeNull();
+    expect(parseRef('https://')).toBeNull();
   });
 });
 

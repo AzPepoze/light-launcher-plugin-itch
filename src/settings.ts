@@ -36,7 +36,7 @@ export const DEFAULT_SETTINGS: Readonly<PluginSettings> = {
   syncOwnedGames: true,
   syncIntervalHours: 0,
   updateCheckIntervalHours: 0,
-  requestDelayMs: 0,
+  requestDelayMs: 1000,
   userAgent: '',
   verboseLogging: false,
   dumpDir: '',

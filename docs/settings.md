@@ -50,7 +50,7 @@ The launcher has two places for downloads: its downloads folder and its games fo
 
 | Setting | Default | What it does |
 |---|---|---|
-| `requestDelayMs` | `0` | Waits this many milliseconds between requests to itch.io. `0` sends them without a wait |
+| `requestDelayMs` | `1000` | Waits this many milliseconds between requests to itch.io. `0` sends them without a wait |
 | `userAgent` | empty | Browser identity sent with each request. Empty uses the default |
 
 ## Debug

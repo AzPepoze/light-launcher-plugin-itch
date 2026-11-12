@@ -17,22 +17,14 @@ export interface ItchUploadsResponse {
   uploads?: import('./uploads').ItchUpload[];
 }
 
-const SLUG_RE = /(?:https?:\/\/)?([\w.-]+)\.itch\.io\/([\w-]+)/i;
-const NUMERIC_PAGE_RE = /\/games\/(\d+)(?:[/?#]|$)/i;
+const NUMERIC_PAGE_RE = /^\/games\/(\d+)\/?$/;
+const SLUG_PATH_RE = /^\/([\w-]+)\/?$/;
+const ITCH_ROOT = 'itch.io';
 
 function absoluteUrl(raw: string): string {
   if (/^https?:\/\//i.test(raw)) return raw;
   if (/^[\w.-]+\.itch\.io(\/|$)/i.test(raw)) return `https://${raw}`;
   return `https://itch.io${raw.startsWith('/') ? '' : '/'}${raw}`;
-}
-
-function isItchHost(raw: string): boolean {
-  try {
-    const host = new URL(absoluteUrl(raw)).hostname.toLowerCase();
-    return host === 'itch.io' || host.endsWith('.itch.io');
-  } catch {
-    return false;
-  }
 }
 
 /** URL -> ref. Purely syntactic; returns null for anything not an itch game. */
@@ -44,18 +36,31 @@ export function parseItchRef(input: string): Ref | null {
     return { kind: 'game', id: raw, url: `https://itch.io/games/${raw}` };
   }
 
-  const numeric = raw.match(NUMERIC_PAGE_RE);
-  if (numeric) {
-    // only itch hosts: `/games/123` on example.com belongs to someone else
-    if (!raw.startsWith('/games/') && !isItchHost(raw)) return null;
-    return { kind: 'game', id: numeric[1], url: absoluteUrl(raw) };
+  let url: URL;
+  try {
+    url = new URL(absoluteUrl(raw));
+  } catch {
+    return null;
   }
 
-  const slug = raw.match(SLUG_RE);
-  if (!slug) return null;
-  const user = slug[1].toLowerCase();
-  const name = slug[2];
-  return { kind: 'game', id: `${user}/${name}`, url: `https://${user}.itch.io/${name}` };
+  const host = url.hostname.toLowerCase();
+  if (host !== ITCH_ROOT && !host.endsWith(`.${ITCH_ROOT}`)) return null;
+
+  if (host === ITCH_ROOT || host === `www.${ITCH_ROOT}`) {
+    const numeric = url.pathname.match(NUMERIC_PAGE_RE);
+    if (!numeric) return null;
+    return { kind: 'game', id: numeric[1], url: `https://itch.io/games/${numeric[1]}` };
+  }
+
+  // only a single user label in front of itch.io is a game page
+  const user = host.slice(0, -`.${ITCH_ROOT}`.length);
+  const slug = url.pathname.match(SLUG_PATH_RE);
+  if (!user || user.includes('.') || !slug) return null;
+  return {
+    kind: 'game',
+    id: `${user}/${slug[1]}`,
+    url: `https://${user}.itch.io/${slug[1]}`,
+  };
 }
 
 /** itch embeds its numeric game id in the public page, often as `data-game_id` */

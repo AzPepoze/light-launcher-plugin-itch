@@ -83,7 +83,7 @@ describe('readSettings', () => {
     expect(DEFAULT_SETTINGS.deleteArchiveAfterInstall).toBe(false);
     expect(DEFAULT_SETTINGS.preferredPlatform).toBe('any');
     expect(DEFAULT_SETTINGS.syncOwnedGames).toBe(true);
-    expect(DEFAULT_SETTINGS.requestDelayMs).toBe(0);
+    expect(DEFAULT_SETTINGS.requestDelayMs).toBe(1000);
     expect(DEFAULT_SETTINGS.dumpDir).toBe('');
   });
 
