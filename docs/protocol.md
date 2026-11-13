@@ -29,10 +29,33 @@ The message rules and typed params come from the `@light-launcher/plugin-sdk` pa
 | `source.checkUpdate` | `source`, `game` | `{ update }`. `update` is `null` when nothing changed |
 | `source.sync` | `source` | `GameDTO[]`, the games you own (`sync:games`) |
 | `source.listGames` | `source`, `scope`, `cursor?`, `limit` | `{ games, nextCursor?, total? }`, one page of the games you own. Needs `listGames` |
+| `source.browse` | `source`, `query?`, `filters?`, `sort?`, `order?`, `cursor?`, `limit` | `{ games, nextCursor? }`, one page of the public itch.io search |
+| `source.listFilters` | `source`, `group`, `query?`, `limit` | `{ options }`, the static values of one browse group |
 | `itch.importDesktopKey` | none | `{ found }`. Copies the key from the itch desktop app |
 | `shutdown` | none | `null`. The plugin then exits |
 
 Call `initialize` first. Other methods fail until it runs.
+
+## Browse
+
+`source.browse` reads the public `https://itch.io/search` page. No API key is needed. The page has no JSON API, so the game cells are parsed from HTML with cheerio:
+`div.game_cell`, `div.game_title a.title`, `div.game_thumb img` (`data-lazy_src`, then `data-src`, then `src`), `div.game_author a`, `div.game_text` and `.price_value`/`.sale_tag`.
+
+| Filter group | Values | URL parameter |
+|---|---|---|
+| Search | free text | `q` |
+| Sort | `popular`, `new`, `updated` | `sort` (best-effort; the search page currently ignores it) |
+| Price | `all`, `free`, `paid` | `price` plus the search page's `facets=m.free` or `facets=m.paid` |
+| Classification | `games`, `assets`, `mods` | `classification=game`, `assets`, `game_mod` |
+
+`source.listFilters` answers the static options for `sort`, `price` and `classification`; it also applies the group's search text and limit. It does not use the network.
+
+`nextCursor` first spends the cells left on the same page, then follows a real next-page link. The search page currently loads without a pager and ignores `sort`, so the cursor is omitted after the cells on the first page and `sort` is best-effort; that is deliberate, because guessing would loop over the same games. A cursor is tied to its query and filters, and a cursor from another query fails with `-32007` / `invalid_cursor`.
+
+> [!IMPORTANT]
+> This is scraping. itch.io does not publish a stable search API, and its markup can change without notice. A page with no parsed cells is written to the debug `dumpDir` when that setting is on. Browse results are read-only and are not added to the library.
+
+The launcher's Library sidebar only calls these methods for a source that declares `browse:filters` and a `sidebar` in `plugin.json`. This plugin implements the methods; it does not declare a sidebar yet.
 
 `source.prepareDownload` also returns the download settings as hints: `root` (`downloads` or `games`), `subfolder`, `install`, `installSubfolder` and `deleteArchive`. The host checks them the same way as `downloads.enqueue`, including the `$GAMES` permission, and queues the file. See [Settings](settings.md#downloads).
 
@@ -66,6 +89,7 @@ After the first read, the key stays in memory until it changes.
 | -32600 | Invalid request | The message is not a JSON-RPC request |
 | -32601 | Method not found | The plugin has no such method |
 | -32603 | Internal error | The method failed. The message says why |
+| -32007 | Invalid cursor | The cursor is malformed or belongs to another query or filter set (`invalid_cursor`) |
 
 ## Notes
 

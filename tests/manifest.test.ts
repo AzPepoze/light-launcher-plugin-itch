@@ -27,6 +27,7 @@ describe('plugin.json', () => {
     const [source] = manifest.contributes.sources;
     expect(source.tile).toBe('poster');
     expect(source.capabilities).toContain('listGames');
+    expect(source.capabilities).toContain('browse');
   });
 
   test('points settings at the root settings schema', () => {

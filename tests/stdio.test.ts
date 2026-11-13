@@ -99,8 +99,8 @@ describe('plugin over stdio', () => {
         grantedPermissions: { network: [], fs: [], secrets: true, browser: false, exec: false },
         dataDir: '/tmp/itch-test',
       });
-      expect(reply.result.pluginVersion).toBe('0.1.1');
-      expect(reply.result.capabilities.itch).toMatchObject({ auth: 'apikey', browse: false, versioned: true });
+      expect(reply.result.pluginVersion).toBe('0.1.2');
+      expect(reply.result.capabilities.itch).toMatchObject({ auth: 'apikey', browse: true, versioned: true });
     }), 15_000);
 
   test('source.parseRef returns the ref for an itch.io url', () =>
@@ -113,6 +113,42 @@ describe('plugin over stdio', () => {
         url: 'https://krasuepi.itch.io/hotpw',
       });
     }), 15_000);
+
+  test('source.browse parses the injected search page and source.listFilters answers', () => {
+    const searchPage = `<div class="game_cell" data-game_id="77">
+      <div class="game_title"><a class="title" href="https://studio.itch.io/bar">Bar</a></div>
+      <div class="game_author"><a href="https://studio.itch.io">Studio</a></div>
+    </div>`;
+    const replies: Record<string, HostReply> = {
+      'secrets.get': () => ({ value: null }),
+      'settings.get': () => ({ settings: {} }),
+      'http.request': (params) => ({
+        status: 200,
+        url: params.url,
+        text: searchPage,
+        headers: {},
+        notModified: false,
+      }),
+    };
+    return withPlugin(replies, async (plugin) => {
+      await plugin.call('initialize', {});
+      const browse = await plugin.call('source.browse', {
+        source: 'itch',
+        query: 'bar',
+        limit: 10,
+      });
+      expect(browse.result.games).toHaveLength(1);
+      expect(browse.result.games[0]).toMatchObject({ sourceId: '77', title: 'Bar', developer: 'Studio' });
+      expect(browse.result.nextCursor).toBeUndefined();
+
+      const filters = await plugin.call('source.listFilters', {
+        source: 'itch',
+        group: 'price',
+        limit: 10,
+      });
+      expect(filters.result.options.map((option: Json) => option.value)).toEqual(['all', 'free', 'paid']);
+    });
+  }, 15_000);
 
   test('source.authStatus is unconfigured when the host has no key', () =>
     withPlugin(NO_KEY, async (plugin) => {

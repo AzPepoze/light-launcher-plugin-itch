@@ -8,9 +8,13 @@
 
 import type {
   AuthState,
+  BrowseParams,
+  BrowseResult,
   FileCandidate,
   GameDTO,
   GameRef,
+  ListFiltersParams,
+  ListFiltersResult,
   ListGamesParams,
   ListGamesResult,
   Platform,
@@ -26,6 +30,14 @@ import {
   parseItchRef,
   uploadDownloadUrl,
 } from './library';
+import {
+  buildBrowseUrl,
+  decodeBrowseCursor,
+  encodeBrowseCursor,
+  filterOptions,
+  hasNextPage,
+  planBrowse,
+} from './browse';
 import {
   checkKey,
   fetchGamePayload,
@@ -78,6 +90,8 @@ export interface ItchProvider extends SourceProvider {
   /** stores a key without checking it online */
   importCredential(value: string): Promise<void>;
   listGames(params: ListGamesParams): Promise<ListGamesResult>;
+  browse(params: BrowseParams): Promise<BrowseResult>;
+  listFilters(params: ListFiltersParams): Promise<ListFiltersResult>;
 }
 
 function toPlatform(platform: UploadPlatform): Platform {
@@ -213,6 +227,48 @@ export function createItchProvider(host: HostServices): ItchProvider {
     const games = parseGameCells(res.text, res.url || target);
     if (!games.length) host.dump('listing', res.text);
     return games;
+  }
+
+  /**
+   * One page of the public itch.io search. The page has no API: the HTML cards
+   * are parsed with cheerio. A cursor first spends the cells left on the same
+   * page, then follows a real next-page link when the page includes one.
+   */
+  async function browse(params: BrowseParams): Promise<BrowseResult> {
+    const plan = planBrowse(params);
+    const limit = Math.max(1, Math.min(100, Math.trunc(params.limit) || 1));
+    const cursor = params.cursor
+      ? decodeBrowseCursor(plan, params.cursor)
+      : { page: 1, offset: 0 };
+    const target = buildBrowseUrl(plan, cursor.page);
+
+    let res;
+    try {
+      res = await host.http.request(target, { headers: { Accept: 'text/html' } });
+    } catch (err) {
+      throw new Error(`itch.io search failed: ${errorMessage(err)}`);
+    }
+    if (res.status >= 400) {
+      throw new Error(`itch.io search returned HTTP ${res.status}`);
+    }
+
+    const cells = parseGameCells(res.text, res.url || target);
+    const games = cells.slice(cursor.offset, cursor.offset + limit);
+    if (!games.length && cursor.offset === 0) host.dump('browse', res.text);
+
+    const nextOffset = cursor.offset + games.length;
+    let nextCursor: string | undefined;
+    if (nextOffset < cells.length) {
+      nextCursor = encodeBrowseCursor(plan, { page: cursor.page, offset: nextOffset });
+    } else if (cells.length > 0 && hasNextPage(res.text, cursor.page)) {
+      nextCursor = encodeBrowseCursor(plan, { page: cursor.page + 1, offset: 0 });
+    }
+    return nextCursor ? { games, nextCursor } : { games };
+  }
+
+  /** The static browse groups. Unknown group ids answer with no options. */
+  async function listFilters(params: ListFiltersParams): Promise<ListFiltersResult> {
+    return { options: filterOptions(params.group, params.query ?? '', params.limit) };
   }
 
   async function resolveFiles(game: GameRef): Promise<FileCandidate[]> {
@@ -359,7 +415,7 @@ export function createItchProvider(host: HostServices): ItchProvider {
     id: 'itch',
     label: 'itch.io',
     capabilities: {
-      browse: false,
+      browse: true,
       auth: 'apikey',
       updateCheck: true,
       resolveFiles: true,
@@ -373,6 +429,8 @@ export function createItchProvider(host: HostServices): ItchProvider {
     importCredential: storeKey,
     fetchGame,
     fetchList,
+    browse,
+    listFilters,
     resolveFiles,
     prepareDownload,
     checkUpdate,

@@ -10,7 +10,7 @@ The manifest is `plugin.json` in the repo root. Light Launcher reads it before i
 |---|---|---|
 | `id` | `itch` | Unique plugin id |
 | `name` | `itch.io` | Name shown to users |
-| `version` | `0.1.0` | Plugin version |
+| `version` | `0.1.2` | Plugin version |
 | `apiVersion` | `1` | Protocol major version the plugin targets |
 | `minHost` | `2.0.0` | Oldest launcher version that can run it |
 | `entry.linux-x64` | `bin/linux-x64/itch` | Program for 64-bit Linux |
@@ -24,12 +24,13 @@ The manifest is `plugin.json` in the repo root. Light Launcher reads it before i
 
 | Capability | Included | The launcher may call |
 |---|---|---|
-| `browse` | Yes | `source.search`, `source.fetchGame` |
+| `browse` | Yes | `source.browse`, `source.listFilters` (the Library sidebar also needs `browse:filters` and a `sidebar`) |
 | `auth` | Yes | `source.authStatus`, `source.setCredential`, `source.clearCredential` |
 | `updateCheck` | Yes | `source.checkUpdate` |
 | `resolveFiles` | Yes | `source.resolveFiles`, `source.prepareDownload` |
 | `sync:games` | Yes | `source.sync`, which returns the games you own |
 | `listGames` | Yes | `source.listGames`, one page of the games you own |
+| `browse:filters` | No | The Library sidebar needs this plus a `sidebar`. The browse methods are implemented, but no sidebar is declared yet |
 
 ## Source tile
 

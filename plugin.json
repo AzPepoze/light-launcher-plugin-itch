@@ -1,7 +1,7 @@
 {
   "id": "itch",
   "name": "itch.io",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "repository": "github:AzPepoze/light-launcher-plugin-itch",
   "apiVersion": "1",
   "minHost": "2.0.0",
@@ -15,7 +15,40 @@
         "id": "itch",
         "label": "itch.io",
         "tile": "poster",
-        "capabilities": ["auth", "updateCheck", "resolveFiles", "sync:games", "listGames"]
+        "capabilities": ["browse", "browse:filters", "auth", "updateCheck", "resolveFiles", "sync:games", "listGames"],
+        "sidebar": [
+          { "type": "search", "id": "text", "placeholder": "Search itch.io" },
+          {
+            "type": "select",
+            "id": "price",
+            "label": "Price",
+            "options": [
+              { "value": "all", "label": "All prices" },
+              { "value": "free", "label": "Free" },
+              { "value": "paid", "label": "Paid" }
+            ]
+          },
+          {
+            "type": "select",
+            "id": "classification",
+            "label": "Type",
+            "options": [
+              { "value": "games", "label": "Games" },
+              { "value": "assets", "label": "Assets" },
+              { "value": "mods", "label": "Mods" }
+            ]
+          },
+          {
+            "type": "sort",
+            "id": "sort",
+            "options": [
+              { "value": "popular", "label": "Popular" },
+              { "value": "new", "label": "New" },
+              { "value": "updated", "label": "Updated" }
+            ],
+            "default": { "value": "popular", "order": "desc" }
+          }
+        ]
       }
     ],
     "settings": { "$ref": "settings.schema.json" },

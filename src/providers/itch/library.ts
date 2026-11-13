@@ -3,9 +3,9 @@
  * Kept free of network access so they can be unit tested directly.
  */
 
-import { absUrl, load, txt } from '@light-launcher/plugin-sdk/helpers';
+import { absUrl, load, txt, type El } from '@light-launcher/plugin-sdk/helpers';
 import type { GameDTO, Ref } from '@light-launcher/plugin-sdk/types';
-import type { ItchGamePayload } from './mapping';
+import { escapeHtml, type ItchGamePayload } from './mapping';
 
 export const ITCH_API = 'https://api.itch.io';
 
@@ -114,38 +114,74 @@ export function ownedKeyGameIds(payload: unknown): number[] {
 // browse / search pages
 // ---------------------------------------------------------------------------
 
-/** parse `div.game_cell` cards from an itch browse/search page */
+function numericId(value: string | undefined | null): string | null {
+  const raw = value?.trim() ?? '';
+  if (!/^\d+$/.test(raw)) return null;
+  const id = Number(raw);
+  return Number.isFinite(id) && id > 0 ? String(id) : null;
+}
+
+/** Text of the first matching element, or an empty string. Icons are not text. */
+function textIn(cell: El, selector: string): string {
+  const found = cell.find(selector).first();
+  if (!found.length) return '';
+  const copy = found.clone();
+  copy.find('svg').remove();
+  return txt(copy).trim();
+}
+
+/**
+ * Parse `div.game_cell` cards from an itch browse/search page.
+ *
+ * The search page is plain HTML with no stable API. The title link is the game
+ * page, `data-game_id` supplies the numeric source id when present, and the
+ * cover is lazy-loaded through `data-lazy_src` (or `data-src`/`src`).
+ */
 export function parseGameCells(html: string, baseUrl: string): GameDTO[] {
   const doc = load(html);
   const out: GameDTO[] = [];
   doc('div.game_cell').each((_, el) => {
     const cell = doc(el);
-    const img = cell.find('img').first();
+    const link = cell.find('.game_title a.title, a.title').first();
+    let href = absUrl(baseUrl, link.attr('href') ?? null);
+    if (!href) {
+      href = absUrl(baseUrl, cell.find('a.thumb_link, a.game_link').first().attr('href') ?? null);
+    }
+    const title = txt(link).trim() || txt(cell.find('.title').first()).trim();
+    if (!title) return;
+
+    const coverImg = cell.find('.game_thumb img').first().length
+      ? cell.find('.game_thumb img').first()
+      : cell.find('img').first();
     const coverUrl = absUrl(
       baseUrl,
-      img.attr('data-lazy_src') ?? img.attr('data-src') ?? img.attr('src') ?? null,
+      coverImg.attr('data-lazy_src') ?? coverImg.attr('data-src') ?? coverImg.attr('src') ?? null,
     );
-    const link = cell.find('a.title').first();
-    const href = absUrl(baseUrl, link.attr('href') ?? null);
-    const title = txt(cell.find('.title').first()) || txt(link);
-    if (!title) return;
+
     const ref = href ? parseItchRef(href) : null;
-    const sourceId = ref?.id ?? href ?? title;
+    const gameId = numericId(cell.attr('data-game_id')) ??
+      numericId(cell.find('[data-game_id]').first().attr('data-game_id'));
+    const sourceId = gameId ?? ref?.id ?? href ?? title;
+    const description = textIn(cell, '.game_text') ||
+      (cell.find('.game_text').first().attr('title') ?? '').trim();
+    const price = textIn(cell, '.price_value') || textIn(cell, '.sale_tag');
+
     out.push({
       source: 'itch',
       sourceId,
       url: href ?? ref?.url ?? baseUrl,
       title,
-      developer: txt(cell.find('.game_author').first()) || null,
+      developer: textIn(cell, '.game_author a') || textIn(cell, '.game_author') || null,
+      engine: null,
       tags: [],
       coverUrl,
       screenshots: [],
-      descriptionHtml: null,
+      descriptionHtml: description ? `<p>${escapeHtml(description)}</p>` : null,
       rating: null,
       status: 'unknown',
       version: null,
       updatedAt: null,
-      extra: { fromListing: true },
+      extra: { fromListing: true, price: price || null },
     });
   });
   return out;

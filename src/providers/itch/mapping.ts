@@ -121,7 +121,7 @@ export function tagsFromGame(game: ItchGamePayload): string[] {
     .slice(0, 12);
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

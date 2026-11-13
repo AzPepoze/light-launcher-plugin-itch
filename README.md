@@ -28,7 +28,7 @@ bun run build:linux
 
 | Capability | What it does |
 |---|---|
-| browse | Reads itch.io listing and search pages |
+| browse | Searches itch.io and reads listing pages from HTML, with sort, price and classification filters |
 | auth | Checks your itch.io API key |
 | updateCheck | Tells you when a game has a newer upload |
 | resolveFiles | Lists the downloads for a game you own |
