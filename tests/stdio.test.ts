@@ -100,7 +100,7 @@ describe('plugin over stdio', () => {
         dataDir: '/tmp/itch-test',
       });
       expect(reply.result.pluginVersion).toBe('0.1.0');
-      expect(reply.result.capabilities.itch).toMatchObject({ auth: 'apikey', browse: true, versioned: true });
+      expect(reply.result.capabilities.itch).toMatchObject({ auth: 'apikey', browse: false, versioned: true });
     }), 15_000);
 
   test('source.parseRef returns the ref for an itch.io url', () =>

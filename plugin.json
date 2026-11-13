@@ -15,7 +15,7 @@
         "id": "itch",
         "label": "itch.io",
         "tile": "poster",
-        "capabilities": ["browse", "auth", "updateCheck", "resolveFiles", "sync:games", "listGames"]
+        "capabilities": ["auth", "updateCheck", "resolveFiles", "sync:games", "listGames"]
       }
     ],
     "settings": { "$ref": "settings.schema.json" },

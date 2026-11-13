@@ -359,7 +359,7 @@ export function createItchProvider(host: HostServices): ItchProvider {
     id: 'itch',
     label: 'itch.io',
     capabilities: {
-      browse: true,
+      browse: false,
       auth: 'apikey',
       updateCheck: true,
       resolveFiles: true,
