@@ -47,6 +47,7 @@ import {
 } from './uploads';
 import { downloadSettingsOf, preferredFilePlatform, type PreferredPlatform } from '../../settings';
 import { downloadHints } from '@light-launcher/plugin-sdk';
+import { ErrorCode, RpcFailure } from '@light-launcher/plugin-sdk/types';
 
 const SECRET_KEY = 'apikey';
 const MAX_SYNC_GAMES = 40;
@@ -145,7 +146,7 @@ export function createItchProvider(host: HostServices): ItchProvider {
 
   async function requireKey(): Promise<string> {
     const apiKey = await currentKey();
-    if (!apiKey) throw new Error('itch.io API key is not configured');
+    if (!apiKey) throw new RpcFailure(ErrorCode.AuthRequired, 'itch.io needs an API key');
     return apiKey;
   }
 

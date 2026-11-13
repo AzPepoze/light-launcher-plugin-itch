@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { fetchTransport, HttpClient } from '@light-launcher/plugin-sdk/helpers';
+import { ErrorCode } from '@light-launcher/plugin-sdk/types';
 import type { FileCandidate, GameDTO, GameRef } from '@light-launcher/plugin-sdk/types';
 import type { HostServices } from '../src/host';
 import { readSettings, type PluginSettings } from '../src/settings';
@@ -645,8 +646,11 @@ describe('listGames', () => {
     await expect(provider.listGames(page('abc', 10))).rejects.toThrow('invalid listGames cursor');
   });
 
-  test('fails with the missing key message when no key is saved', async () => {
+  test('fails with auth required when no key is saved', async () => {
     const provider = createItchProvider(fakeHost(new Map()));
-    await expect(provider.listGames(page(undefined, 10))).rejects.toThrow('API key is not configured');
+    await expect(provider.listGames(page(undefined, 10))).rejects.toMatchObject({
+      code: ErrorCode.AuthRequired,
+      message: 'itch.io needs an API key',
+    });
   });
 });
