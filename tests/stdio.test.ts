@@ -99,7 +99,7 @@ describe('plugin over stdio', () => {
         grantedPermissions: { network: [], fs: [], secrets: true, browser: false, exec: false },
         dataDir: '/tmp/itch-test',
       });
-      expect(reply.result.pluginVersion).toBe('0.1.0');
+      expect(reply.result.pluginVersion).toBe('0.1.1');
       expect(reply.result.capabilities.itch).toMatchObject({ auth: 'apikey', browse: false, versioned: true });
     }), 15_000);
 
