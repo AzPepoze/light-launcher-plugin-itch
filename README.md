@@ -22,13 +22,13 @@ bun run build:linux
 | Typecheck | `bun run typecheck` | Checks types |
 | Build for Linux | `bun run build:linux` | `bin/linux-x64/itch` |
 | Build for Windows | `bun run build:windows` | `bin/windows-x64/itch.exe` |
-| Build for Windows | `bun run build:windows` | `bin/windows-x64/itch.exe` |
 
 ## What it can do
 
 | Capability | What it does |
 |---|---|
 | browse | Searches itch.io and reads listing pages from HTML, with sort, price and classification filters |
+| browse:filters | Declares the Library browse sidebar with search, price, type and sort groups |
 | auth | Checks your itch.io API key |
 | updateCheck | Tells you when a game has a newer upload |
 | resolveFiles | Lists the downloads for a game you own |

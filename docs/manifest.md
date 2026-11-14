@@ -24,13 +24,13 @@ The manifest is `plugin.json` in the repo root. Light Launcher reads it before i
 
 | Capability | Included | The launcher may call |
 |---|---|---|
-| `browse` | Yes | `source.browse`, `source.listFilters` (the Library sidebar also needs `browse:filters` and a `sidebar`) |
+| `browse` | Yes | `source.browse`, `source.listFilters` |
 | `auth` | Yes | `source.authStatus`, `source.setCredential`, `source.clearCredential` |
 | `updateCheck` | Yes | `source.checkUpdate` |
 | `resolveFiles` | Yes | `source.resolveFiles`, `source.prepareDownload` |
 | `sync:games` | Yes | `source.sync`, which returns the games you own |
 | `listGames` | Yes | `source.listGames`, one page of the games you own |
-| `browse:filters` | No | The Library sidebar needs this plus a `sidebar`. The browse methods are implemented, but no sidebar is declared yet |
+| `browse:filters` | Yes | `source.browse`, `source.listFilters`, plus the search, price, type and sort groups the Library sidebar reads from `plugin.json` |
 
 ## Source tile
 

@@ -23,17 +23,14 @@ The workflows check out [AzPepoze/light-launcher-plugin-sdk](https://github.com/
 | Path | Contents |
 |---|---|
 | `src/main.ts` | Entry point. Maps protocol methods to the provider |
-| `src/host.ts` | The services the provider needs from the host |
-| `src/logger.ts` | Colored logs on stderr |
 | `src/providers/itch/` | itch.io API, parsing, library, browse and upload rules |
 | `src/library/itch-key.ts` | Reads the API key from the itch desktop app |
 | `src/settings.ts` | Reads saved settings, with defaults. See [Settings](settings.md) |
 | `src/http.ts` | Applies the request delay and user agent to every request |
-| `src/dump.ts` | Saves raw pages to the dump folder |
 | `settings.schema.json` | The settings form. Defaults must match `src/settings.ts` |
 | `tests/` | Unit tests, a manifest schema check and a stdio test |
 
-The protocol runtime, HTTP client and HTML helpers come from `@light-launcher/plugin-sdk`. See [Protocol](protocol.md).
+The protocol runtime, logger, HTTP client, dump writer, settings helpers and HTML helpers come from `@light-launcher/plugin-sdk`. See [Protocol](protocol.md).
 
 ## Commands
 
@@ -54,18 +51,15 @@ The protocol runtime, HTTP client and HTML helpers come from `@light-launcher/pl
 | `browse.test.ts` | Browse URL building, search-card parsing, cursors, next-page evidence and `listFilters`. Uses a fixture, no network |
 | `manifest.test.ts` | `plugin.json` against the SDK schema. Skipped with a message when ajv is missing |
 | `stdio.test.ts` | Runs the plugin as a child process and talks to it over stdio |
-| `logger.test.ts` | Log colors and category colors |
 | `settings.test.ts` | Settings schema, defaults, invalid values and the download settings against the SDK |
 | `http.test.ts` | Request delay and user agent |
-| `debug.test.ts` | Verbose logging and the dump writer |
 
 ## Known gaps
 
 | Gap | Effect |
 |---|---|
 | `dataDir` is not used | The plugin keeps no files yet |
-| `dump` only logs | Raw pages for failed parses are not saved |
+| Dumps need `dumpDir` | Raw pages for failed parses are written there only when the setting is not empty |
 | `fs` is not checked by the host | The desktop key import reads files itself |
 | Replies after shutdown are dropped | A request still running when `shutdown` arrives gets no reply |
 | itch.io search has no stable API | Browse parses search HTML. Markup changes can break it, and the search page currently offers no pager, so browse stops after the cells on the first page |
-| No browse sidebar | `source.browse` and `source.listFilters` are implemented, but the manifest does not declare `browse:filters` and a `sidebar`, so the Library browse UI does not call them yet |

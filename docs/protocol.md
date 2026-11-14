@@ -44,18 +44,18 @@ Call `initialize` first. Other methods fail until it runs.
 | Filter group | Values | URL parameter |
 |---|---|---|
 | Search | free text | `q` |
-| Sort | `popular`, `new`, `updated` | `sort` (best-effort; the search page currently ignores it) |
+| Sort | `popular`, `new`, `updated` | `sort` (best-effort; the search page currently ignores it). `order` (`asc`/`desc`, default `desc`) is accepted and tied to the cursor, but is not sent because the page has no order parameter |
 | Price | `all`, `free`, `paid` | `price` plus the search page's `facets=m.free` or `facets=m.paid` |
 | Classification | `games`, `assets`, `mods` | `classification=game`, `assets`, `game_mod` |
 
 `source.listFilters` answers the static options for `sort`, `price` and `classification`; it also applies the group's search text and limit. It does not use the network.
 
-`nextCursor` first spends the cells left on the same page, then follows a real next-page link. The search page currently loads without a pager and ignores `sort`, so the cursor is omitted after the cells on the first page and `sort` is best-effort; that is deliberate, because guessing would loop over the same games. A cursor is tied to its query and filters, and a cursor from another query fails with `-32007` / `invalid_cursor`.
+`nextCursor` first spends the cells left on the same page, then follows a real next-page link. The search page currently loads without a pager and ignores `sort`, so the cursor is omitted after the cells on the first page and `sort` is best-effort; that is deliberate, because guessing would loop over the same games. `order` is part of the cursor's filter fingerprint but is not sent. A cursor is tied to its query and filters, and a cursor from another query fails with `-32007` / `invalid_cursor`.
 
 > [!IMPORTANT]
 > This is scraping. itch.io does not publish a stable search API, and its markup can change without notice. A page with no parsed cells is written to the debug `dumpDir` when that setting is on. Browse results are read-only and are not added to the library.
 
-The launcher's Library sidebar only calls these methods for a source that declares `browse:filters` and a `sidebar` in `plugin.json`. This plugin implements the methods; it does not declare a sidebar yet.
+The launcher's Library sidebar only calls these methods for a source that declares `browse:filters` and a `sidebar` in `plugin.json`. This plugin declares `browse:filters` and a `sidebar` in `plugin.json`, so the Library browse UI can call them.
 
 `source.prepareDownload` also returns the download settings as hints: `root` (`downloads` or `games`), `subfolder`, `install`, `installSubfolder` and `deleteArchive`. The host checks them the same way as `downloads.enqueue`, including the `$GAMES` permission, and queues the file. See [Settings](settings.md#downloads).
 
