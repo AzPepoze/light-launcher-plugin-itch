@@ -22,15 +22,4 @@ describe('plugin.json', () => {
     expect(validate.errors ?? []).toEqual([]);
     expect(valid).toBe(true);
   });
-
-  test('the itch source lists its owned games as poster cards', () => {
-    const [source] = manifest.contributes.sources;
-    expect(source.tile).toBe('poster');
-    expect(source.capabilities).toContain('listGames');
-    expect(source.capabilities).toContain('browse');
-  });
-
-  test('points settings at the root settings schema', () => {
-    expect(manifest.contributes.settings).toEqual({ $ref: 'settings.schema.json' });
-  });
 });

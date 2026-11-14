@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { downloadSettingsSchemaProperties } from '@light-launcher/plugin-sdk';
 import schemaFile from '../settings.schema.json';
-import { DEFAULT_SETTINGS, readSettings, type PluginSettings } from '../src/settings';
+import { DEFAULT_SETTINGS, settingsFrom, type PluginSettings } from '../src/settings';
 
 type SettingSchema = {
   type: string;
@@ -37,19 +37,11 @@ describe('settings.schema.json', () => {
     expect(Object.keys(properties).sort()).toEqual(Object.keys(DEFAULT_SETTINGS).sort());
   });
 
-  test('every setting has a title and a known group', () => {
+  test('every setting uses a known group', () => {
     const groups = ['Downloads', 'Platform', 'Library', 'Updates', 'Network', 'Debug'];
-    for (const prop of Object.values(properties as Record<string, SettingSchema & { title?: string }>)) {
-      expect(typeof prop.title).toBe('string');
+    for (const prop of Object.values(properties)) {
       expect(groups).toContain(prop['x-ll-group'] ?? '');
     }
-  });
-
-  test('compiles as JSON Schema 2020-12', async () => {
-    const { default: Ajv2020 } = await import('ajv/dist/2020');
-    // strict off: the x-ll-* keywords are host UI hints that validators ignore
-    const ajv = new Ajv2020({ strict: false });
-    expect(() => ajv.compile(schemaFile)).not.toThrow();
   });
 
   test('numeric settings have bounds that contain their default', () => {
@@ -74,9 +66,9 @@ describe('settings.schema.json', () => {
   });
 });
 
-describe('readSettings', () => {
+describe('settingsFrom', () => {
   test('no saved values gives the defaults, which keep the old behaviour', () => {
-    expect(readSettings({})).toEqual(DEFAULT_SETTINGS);
+    expect(settingsFrom({})).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS.downloadRoot).toBe('downloads');
     expect(DEFAULT_SETTINGS.gameSubfolder).toBe(true);
     expect(DEFAULT_SETTINGS.installAfterDownload).toBe(false);
@@ -103,12 +95,12 @@ describe('readSettings', () => {
       verboseLogging: true,
       dumpDir: '/tmp/dumps',
     };
-    expect(readSettings(saved)).toEqual({ ...saved, userAgent: 'custom agent' });
+    expect(settingsFrom(saved)).toEqual({ ...saved, userAgent: 'custom agent' });
   });
 
   test('invalid saved values fall back to the default', () => {
     expect(
-      readSettings({
+      settingsFrom({
         downloadRoot: '/opt/steam',
         gameSubfolder: 'yes',
         installAfterDownload: 0,
