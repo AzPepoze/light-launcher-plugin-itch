@@ -7,7 +7,7 @@ import { absUrl, load, txt, type El } from '@light-launcher/plugin-sdk/helpers';
 import type { GameDTO, Ref } from '@light-launcher/plugin-sdk/types';
 import { escapeHtml, type ItchGamePayload } from './mapping';
 
-export const ITCH_API = 'https://api.itch.io';
+const ITCH_API = 'https://api.itch.io';
 
 export interface ItchGameResponse {
   game?: ItchGamePayload;

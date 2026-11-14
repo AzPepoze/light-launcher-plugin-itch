@@ -24,11 +24,6 @@ export interface ItchUpload {
   [key: string]: unknown;
 }
 
-export interface ChooseUploadsOptions {
-  /** put demo builds first instead of full builds */
-  demosFirst?: boolean;
-}
-
 function createdMs(upload: ItchUpload): number {
   const ms = Date.parse(upload.created_at ?? '');
   return Number.isFinite(ms) ? ms : 0;
@@ -77,12 +72,8 @@ export function preferPlatform(upload: ItchUpload): UploadPlatform {
  * Order every upload for display: full builds above demos, newest first,
  * otherwise the input order is preserved. Never sorted by `position`.
  */
-export function chooseUploads(
-  uploads: readonly ItchUpload[],
-  opts: ChooseUploadsOptions = {},
-): ItchUpload[] {
-  const demosFirst = opts.demosFirst === true;
-  const demoRank = (upload: ItchUpload) => (isDemo(upload) === demosFirst ? 0 : 1);
+export function chooseUploads(uploads: readonly ItchUpload[]): ItchUpload[] {
+  const demoRank = (upload: ItchUpload) => (isDemo(upload) ? 1 : 0);
   return uploads
     .map((upload, index) => ({ upload, index }))
     .sort((a, b) => {

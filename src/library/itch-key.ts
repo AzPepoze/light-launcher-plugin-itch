@@ -48,7 +48,3 @@ export function readItchApiKey(): string | null {
   }
   return null;
 }
-
-export function itchAppDetected(): boolean {
-  return butlerCandidates().length > 0;
-}
