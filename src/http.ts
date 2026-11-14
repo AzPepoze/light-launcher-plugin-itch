@@ -3,27 +3,15 @@
  * optional User-Agent. Each request reads the settings, so a change applies at once.
  */
 
-import type { HttpClient, HttpOptions } from '@light-launcher/plugin-sdk/helpers';
-import type { PluginSettings } from './settings';
+import {
+  HttpClient,
+  spacedTransport,
+  type HttpOptions,
+  type HttpTransport,
+} from '@light-launcher/plugin-sdk/helpers';
+import { DEFAULT_SETTINGS, type PluginSettings } from './settings';
 
 export type HttpService = Pick<HttpClient, 'request' | 'json'>;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/** Gives each request its own send time, one delay after the previous one. Safe for concurrent calls. */
-export class RequestSpacer {
-  private nextSlot = 0;
-
-  async wait(delayMs: number): Promise<void> {
-    if (delayMs <= 0) return;
-    const now = Date.now();
-    const start = Math.max(now, this.nextSlot);
-    this.nextSlot = start + delayMs;
-    if (start > now) await sleep(start - now);
-  }
-}
 
 function withUserAgent(options: HttpOptions, userAgent: string): HttpOptions {
   if (!userAgent) return options;
@@ -31,15 +19,25 @@ function withUserAgent(options: HttpOptions, userAgent: string): HttpOptions {
 }
 
 export function createNetworkHttp(
-  client: HttpClient,
+  transport: HttpTransport,
   settings: () => Promise<PluginSettings>,
+  maxBodyBytes?: number,
 ): HttpService {
-  const spacer = new RequestSpacer();
+  // The getter keeps later settings changes live; a non-zero start avoids the no-delay fast path.
+  let delayMs = DEFAULT_SETTINGS.requestDelayMs;
+  const client = new HttpClient(
+    spacedTransport(transport, {
+      get minDelayMs() {
+        return delayMs;
+      },
+    }),
+    { maxBodyBytes },
+  );
 
-  async function prepare(options: HttpOptions = {}): Promise<HttpOptions> {
+  async function prepare(options?: HttpOptions): Promise<HttpOptions> {
     const current = await settings();
-    await spacer.wait(current.requestDelayMs);
-    return withUserAgent(options, current.userAgent);
+    delayMs = current.requestDelayMs;
+    return withUserAgent(options ?? {}, current.userAgent);
   }
 
   return {

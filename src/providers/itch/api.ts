@@ -4,8 +4,9 @@
  */
 
 import { HttpError } from '@light-launcher/plugin-sdk/helpers';
+import type { HostServices } from '@light-launcher/plugin-sdk/runtime';
 import type { AuthState, GameRef, Ref } from '@light-launcher/plugin-sdk/types';
-import type { HostServices } from '../../host';
+import type { PluginSettings } from '../../settings';
 import {
   apiUrl,
   ownedKeyGameIds,
@@ -18,7 +19,7 @@ import type { ItchUpload } from './uploads';
 
 const MAX_LIBRARY_PAGES = 40;
 
-function errorMessage(err: unknown): string {
+export function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
@@ -26,7 +27,7 @@ function statusOf(err: unknown): number {
   return err instanceof HttpError ? err.status : 0;
 }
 
-export async function checkKey(host: HostServices, value: string): Promise<AuthState> {
+export async function checkKey(host: HostServices<PluginSettings>, value: string): Promise<AuthState> {
   const checkedAt = new Date().toISOString();
   try {
     const res = await host.http.request(apiUrl('/profile', value), {
@@ -57,7 +58,7 @@ export async function checkKey(host: HostServices, value: string): Promise<AuthS
 }
 
 export async function fetchGamePayload(
-  host: HostServices,
+  host: HostServices<PluginSettings>,
   gameId: number | string,
   key: string,
 ): Promise<ItchGamePayload> {
@@ -76,7 +77,7 @@ function uploadsFailure(err: unknown): string {
 }
 
 export async function fetchUploads(
-  host: HostServices,
+  host: HostServices<PluginSettings>,
   gameId: number | string,
   key: string,
 ): Promise<ItchUpload[]> {
@@ -90,7 +91,7 @@ export async function fetchUploads(
 }
 
 /** numeric id from the ref, resolving the public page when given a slug */
-export async function resolveGameId(host: HostServices, ref: Ref): Promise<number> {
+export async function resolveGameId(host: HostServices<PluginSettings>, ref: Ref): Promise<number> {
   if (/^\d+$/.test(ref.id)) return Number(ref.id);
   const pageUrl = /^https?:\/\//i.test(ref.url) ? ref.url : `https://${ref.id}`;
   const res = await host.http.request(pageUrl, { headers: { Accept: 'text/html' } });
@@ -105,7 +106,7 @@ export async function resolveGameId(host: HostServices, ref: Ref): Promise<numbe
   return id;
 }
 
-export async function gameIdOf(host: HostServices, game: GameRef): Promise<number> {
+export async function gameIdOf(host: HostServices<PluginSettings>, game: GameRef): Promise<number> {
   const extraId = Number(game.extra?.gameId);
   if (Number.isFinite(extraId) && extraId > 0) return extraId;
   if (/^\d+$/.test(game.sourceId)) return Number(game.sourceId);
@@ -117,7 +118,7 @@ export async function gameIdOf(host: HostServices, game: GameRef): Promise<numbe
  * Throws a specific message on 404 because that almost always means the key
  * was not minted with library scope.
  */
-export async function ownedGameIds(host: HostServices, key: string): Promise<number[]> {
+export async function ownedGameIds(host: HostServices<PluginSettings>, key: string): Promise<number[]> {
   const ids: number[] = [];
   const seen = new Set<number>();
 
@@ -153,7 +154,7 @@ interface OwnedKeysResponse {
 
 /** id of the account's owned download key for one game, or null when there is none or the lookup fails */
 export async function ownedDownloadKeyId(
-  host: HostServices,
+  host: HostServices<PluginSettings>,
   gameId: number,
   key: string,
 ): Promise<number | null> {

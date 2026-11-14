@@ -2,10 +2,10 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { HttpClient, fetchTransport } from '@light-launcher/plugin-sdk/helpers';
+import type { HostServices } from '@light-launcher/plugin-sdk/runtime';
 import { ErrorCode } from '@light-launcher/plugin-sdk/types';
 import type { BrowseParams } from '@light-launcher/plugin-sdk/types';
-import type { HostServices } from '../src/host';
-import { readSettings } from '../src/settings';
+import { settingsFrom, type PluginSettings } from '../src/settings';
 import { createItchProvider } from '../src/providers/itch';
 import {
   buildBrowseUrl,
@@ -34,10 +34,10 @@ function params(extra: Partial<BrowseParams> = {}): BrowseParams {
   return { source: 'itch', limit: 10, ...extra };
 }
 
-function fakeHost(fetchImpl: typeof fetch): HostServices {
+function fakeHost(fetchImpl: typeof fetch): HostServices<PluginSettings> {
   return {
     http: new HttpClient(fetchTransport(fetchImpl)),
-    settings: async () => readSettings({}),
+    settings: async () => settingsFrom({}),
     storage: {
       async get() {
         return null;

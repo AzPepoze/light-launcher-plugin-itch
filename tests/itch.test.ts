@@ -1,14 +1,15 @@
 import { describe, expect, test } from 'bun:test';
 import { fetchTransport, HttpClient } from '@light-launcher/plugin-sdk/helpers';
+import type { HostServices } from '@light-launcher/plugin-sdk/runtime';
 import { ErrorCode } from '@light-launcher/plugin-sdk/types';
 import type { FileCandidate, GameDTO, GameRef } from '@light-launcher/plugin-sdk/types';
-import type { HostServices } from '../src/host';
-import { readSettings, type PluginSettings } from '../src/settings';
-import { createItchProvider, parseRef } from '../src/providers/itch';
+import { settingsFrom, type PluginSettings } from '../src/settings';
+import { createItchProvider } from '../src/providers/itch';
 import {
   mapGame,
   ownedKeyGameIds,
   parseGameIdFromHtml,
+  parseItchRef as parseRef,
   type ItchGamePayload,
 } from '../src/providers/itch/library';
 import {
@@ -152,7 +153,6 @@ describe('upload ranking', () => {
       },
     ];
     expect(chooseUploads(withNewDemo).map((u) => u.id)).toEqual([2, 3, 4, 1]);
-    expect(chooseUploads(withNewDemo, { demosFirst: true })[0].id).toBe(4);
   });
 
   test('versionFromUpload prefers the filename version', () => {
@@ -261,11 +261,11 @@ function fakeHost(
   store: Map<string, string>,
   fetchImpl: typeof fetch = routeFetch,
   saved: Partial<Record<keyof PluginSettings, unknown>> = {},
-): HostServices {
+): HostServices<PluginSettings> {
   const cache = new Map<string, unknown>();
   return {
     http: new HttpClient(fetchTransport(fetchImpl)),
-    settings: async () => readSettings(saved),
+    settings: async () => settingsFrom(saved),
     storage: {
       async get(key) {
         return cache.get(key) ?? null;

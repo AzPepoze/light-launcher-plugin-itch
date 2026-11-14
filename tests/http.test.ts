@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { fetchTransport, HttpClient } from '@light-launcher/plugin-sdk/helpers';
-import { createNetworkHttp, RequestSpacer } from '../src/http';
-import { readSettings } from '../src/settings';
+import { fetchTransport } from '@light-launcher/plugin-sdk/helpers';
+import { createNetworkHttp } from '../src/http';
+import { settingsFrom } from '../src/settings';
 
 interface Sent {
   url: string;
@@ -23,32 +23,9 @@ function recordingFetch(): { fetch: typeof fetch; sent: Sent[] } {
   return { fetch: fetchImpl, sent };
 }
 
-function networkHttp(saved: Parameters<typeof readSettings>[0], fetchImpl: typeof fetch) {
-  const client = new HttpClient(fetchTransport(fetchImpl));
-  return createNetworkHttp(client, async () => readSettings(saved));
+function networkHttp(saved: Parameters<typeof settingsFrom>[0], fetchImpl: typeof fetch) {
+  return createNetworkHttp(fetchTransport(fetchImpl), async () => settingsFrom(saved));
 }
-
-describe('RequestSpacer', () => {
-  test('a zero delay never waits', async () => {
-    const spacer = new RequestSpacer();
-    const started = Date.now();
-    await Promise.all([spacer.wait(0), spacer.wait(0), spacer.wait(0)]);
-    expect(Date.now() - started).toBeLessThan(50);
-  });
-
-  test('concurrent waits start one delay apart', async () => {
-    const spacer = new RequestSpacer();
-    const starts: number[] = [];
-    await Promise.all(
-      [0, 1, 2].map(async () => {
-        await spacer.wait(50);
-        starts.push(Date.now());
-      }),
-    );
-    starts.sort((a, b) => a - b);
-    expect(starts[2] - starts[0]).toBeGreaterThanOrEqual(90);
-  });
-});
 
 describe('createNetworkHttp', () => {
   test('defaults send no User-Agent override', async () => {

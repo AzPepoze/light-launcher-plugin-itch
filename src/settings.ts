@@ -3,12 +3,16 @@
  * default when it is missing or not valid. Defaults match settings.schema.json.
  */
 
+import {
+  boolOr,
+  intInRange,
+  parseDownloadSettings,
+  textOr,
+} from '@light-launcher/plugin-sdk/helpers';
 import type { DownloadRoot, DownloadSettings, Platform } from '@light-launcher/plugin-sdk/types';
 
 export const PREFERRED_PLATFORMS = ['any', 'windows', 'linux', 'osx'] as const;
 export type PreferredPlatform = (typeof PREFERRED_PLATFORMS)[number];
-
-export const DOWNLOAD_ROOTS = ['downloads', 'games'] as const;
 
 export interface PluginSettings {
   downloadRoot: DownloadRoot;
@@ -44,51 +48,31 @@ export const DEFAULT_SETTINGS: Readonly<PluginSettings> = {
 
 const MAX_HOURS = 720;
 const MAX_DELAY_MS = 10_000;
-
-function booleanOr(value: unknown, fallback: boolean): boolean {
-  return typeof value === 'boolean' ? value : fallback;
-}
-
-function integerInRange(value: unknown, max: number, fallback: number): number {
-  return Number.isInteger(value) && (value as number) >= 0 && (value as number) <= max
-    ? (value as number)
-    : fallback;
-}
-
-function textOr(value: unknown, fallback: string): string {
-  return typeof value === 'string' ? value.trim() : fallback;
-}
+const hoursInRange = intInRange(0, MAX_HOURS);
+const delayInRange = intInRange(0, MAX_DELAY_MS);
 
 function platformOr(value: unknown, fallback: PreferredPlatform): PreferredPlatform {
   return PREFERRED_PLATFORMS.find((option) => option === value) ?? fallback;
 }
 
-function downloadRootOr(value: unknown, fallback: DownloadRoot): DownloadRoot {
-  return DOWNLOAD_ROOTS.find((option) => option === value) ?? fallback;
-}
+/** The raw settings from the host: every known key is optional and may hold any value. */
+type SettingsInput = { [K in keyof PluginSettings]?: unknown };
 
 /** Reads the saved values, using the default for anything missing or invalid. */
-export function readSettings(raw: Partial<Record<keyof PluginSettings, unknown>>): PluginSettings {
+export function settingsFrom(raw: SettingsInput): PluginSettings {
   return {
-    downloadRoot: downloadRootOr(raw.downloadRoot, DEFAULT_SETTINGS.downloadRoot),
-    gameSubfolder: booleanOr(raw.gameSubfolder, DEFAULT_SETTINGS.gameSubfolder),
-    installAfterDownload: booleanOr(raw.installAfterDownload, DEFAULT_SETTINGS.installAfterDownload),
-    deleteArchiveAfterInstall: booleanOr(
-      raw.deleteArchiveAfterInstall,
-      DEFAULT_SETTINGS.deleteArchiveAfterInstall,
-    ),
+    ...parseDownloadSettings(raw as Record<string, unknown>),
     preferredPlatform: platformOr(raw.preferredPlatform, DEFAULT_SETTINGS.preferredPlatform),
-    skipSoundtracksAndExtras: booleanOr(raw.skipSoundtracksAndExtras, DEFAULT_SETTINGS.skipSoundtracksAndExtras),
-    syncOwnedGames: booleanOr(raw.syncOwnedGames, DEFAULT_SETTINGS.syncOwnedGames),
-    syncIntervalHours: integerInRange(raw.syncIntervalHours, MAX_HOURS, DEFAULT_SETTINGS.syncIntervalHours),
-    updateCheckIntervalHours: integerInRange(
+    skipSoundtracksAndExtras: boolOr(raw.skipSoundtracksAndExtras, DEFAULT_SETTINGS.skipSoundtracksAndExtras),
+    syncOwnedGames: boolOr(raw.syncOwnedGames, DEFAULT_SETTINGS.syncOwnedGames),
+    syncIntervalHours: hoursInRange(raw.syncIntervalHours, DEFAULT_SETTINGS.syncIntervalHours),
+    updateCheckIntervalHours: hoursInRange(
       raw.updateCheckIntervalHours,
-      MAX_HOURS,
       DEFAULT_SETTINGS.updateCheckIntervalHours,
     ),
-    requestDelayMs: integerInRange(raw.requestDelayMs, MAX_DELAY_MS, DEFAULT_SETTINGS.requestDelayMs),
+    requestDelayMs: delayInRange(raw.requestDelayMs, DEFAULT_SETTINGS.requestDelayMs),
     userAgent: textOr(raw.userAgent, DEFAULT_SETTINGS.userAgent),
-    verboseLogging: booleanOr(raw.verboseLogging, DEFAULT_SETTINGS.verboseLogging),
+    verboseLogging: boolOr(raw.verboseLogging, DEFAULT_SETTINGS.verboseLogging),
     dumpDir: textOr(raw.dumpDir, DEFAULT_SETTINGS.dumpDir),
   };
 }

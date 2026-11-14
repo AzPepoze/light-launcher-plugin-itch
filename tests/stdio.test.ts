@@ -78,6 +78,14 @@ function startPlugin(hostReplies: Record<string, HostReply>) {
   };
 }
 
+const INIT = {
+  hostVersion: '2.0.0',
+  apiVersion: '1',
+  platform: 'linux',
+  grantedPermissions: { network: [], fs: [], secrets: true, browser: false, exec: false },
+  dataDir: '/tmp/itch-test',
+};
+
 const NO_KEY = { 'secrets.get': () => ({ value: null }), 'settings.get': () => ({ settings: {} }) };
 
 async function withPlugin(hostReplies: Record<string, HostReply>, body: (plugin: ReturnType<typeof startPlugin>) => Promise<void>) {
@@ -92,20 +100,14 @@ async function withPlugin(hostReplies: Record<string, HostReply>, body: (plugin:
 describe('plugin over stdio', () => {
   test('initialize returns the version and capabilities keyed by source id', () =>
     withPlugin(NO_KEY, async (plugin) => {
-      const reply = await plugin.call('initialize', {
-        hostVersion: '2.0.0',
-        apiVersion: '1',
-        platform: 'linux',
-        grantedPermissions: { network: [], fs: [], secrets: true, browser: false, exec: false },
-        dataDir: '/tmp/itch-test',
-      });
+      const reply = await plugin.call('initialize', INIT);
       expect(reply.result.pluginVersion).toBe('0.1.2');
       expect(reply.result.capabilities.itch).toMatchObject({ auth: 'apikey', browse: true, versioned: true });
     }), 15_000);
 
   test('source.parseRef returns the ref for an itch.io url', () =>
     withPlugin(NO_KEY, async (plugin) => {
-      await plugin.call('initialize', {});
+      await plugin.call('initialize', INIT);
       const reply = await plugin.call('source.parseRef', { url: 'https://krasuepi.itch.io/hotpw' });
       expect(reply.result).toEqual({
         kind: 'game',
@@ -131,7 +133,7 @@ describe('plugin over stdio', () => {
       }),
     };
     return withPlugin(replies, async (plugin) => {
-      await plugin.call('initialize', {});
+      await plugin.call('initialize', INIT);
       const browse = await plugin.call('source.browse', {
         source: 'itch',
         query: 'bar',
@@ -152,7 +154,7 @@ describe('plugin over stdio', () => {
 
   test('source.authStatus is unconfigured when the host has no key', () =>
     withPlugin(NO_KEY, async (plugin) => {
-      await plugin.call('initialize', {});
+      await plugin.call('initialize', INIT);
       const reply = await plugin.call('source.authStatus', { source: 'itch' });
       expect(reply.result.status).toBe('unconfigured');
     }), 15_000);
@@ -168,7 +170,7 @@ describe('plugin over stdio', () => {
       },
     };
     return withPlugin(replies, async (plugin) => {
-      await plugin.call('initialize', {});
+      await plugin.call('initialize', INIT);
       const reply = await plugin.call('source.authStatus', { source: 'itch' });
       expect(reply.result.status).toBe('invalid');
       expect(calls).toHaveLength(1);
@@ -182,7 +184,7 @@ describe('plugin over stdio', () => {
       'http.request': (params) => ({ status: 401, url: params.url, text: '', headers: {}, notModified: false }),
     };
     return withPlugin(replies, async (plugin) => {
-      await plugin.call('initialize', {});
+      await plugin.call('initialize', INIT);
       const reply = await plugin.call('source.authStatus', { source: 'itch' });
       expect(reply.result.status).toBe('invalid');
     });
@@ -190,14 +192,14 @@ describe('plugin over stdio', () => {
 
   test('an unknown method gets a method-not-found error', () =>
     withPlugin(NO_KEY, async (plugin) => {
-      await plugin.call('initialize', {});
+      await plugin.call('initialize', INIT);
       const reply = await plugin.call('source.nope', {});
       expect(reply.error?.code).toBe(-32601);
     }), 15_000);
 
   test('shutdown answers null and the process exits with 0', () =>
     withPlugin(NO_KEY, async (plugin) => {
-      await plugin.call('initialize', {});
+      await plugin.call('initialize', INIT);
       const { reply, exitCode } = await plugin.shutdown();
       expect(reply.result).toBeNull();
       expect(exitCode).toBe(0);

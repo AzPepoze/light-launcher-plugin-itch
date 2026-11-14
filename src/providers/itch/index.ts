@@ -22,8 +22,12 @@ import type {
   Ref,
   UpdateInfo,
 } from '@light-launcher/plugin-sdk/types';
-import type { ListOptions, SourceProvider } from '@light-launcher/plugin-sdk/runtime';
-import type { HostServices } from '../../host';
+import {
+  cachedSecret,
+  type HostServices,
+  type ListOptions,
+  type SourceProvider,
+} from '@light-launcher/plugin-sdk/runtime';
 import {
   mapGame,
   parseGameCells,
@@ -40,6 +44,7 @@ import {
 } from './browse';
 import {
   checkKey,
+  errorMessage,
   fetchGamePayload,
   fetchUploads,
   gameIdOf,
@@ -57,7 +62,12 @@ import {
   type ItchUpload,
   type UploadPlatform,
 } from './uploads';
-import { downloadSettingsOf, preferredFilePlatform, type PreferredPlatform } from '../../settings';
+import {
+  downloadSettingsOf,
+  preferredFilePlatform,
+  type PluginSettings,
+  type PreferredPlatform,
+} from '../../settings';
 import { downloadHints } from '@light-launcher/plugin-sdk';
 import { ErrorCode, RpcFailure } from '@light-launcher/plugin-sdk/types';
 
@@ -112,10 +122,6 @@ function preferredFirst(files: FileCandidate[], setting: PreferredPlatform): Fil
   ];
 }
 
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
 function downloadKeyParams(keyId: number | null): Record<string, string> {
   return keyId == null ? {} : { download_key_id: String(keyId) };
 }
@@ -149,13 +155,16 @@ function unconfigured(): AuthState {
   return { status: 'unconfigured', checkedAt: new Date().toISOString() };
 }
 
-export function createItchProvider(host: HostServices): ItchProvider {
-  /** undefined until the first read from host secrets */
-  let key: string | null | undefined;
+export function createItchProvider(host: HostServices<PluginSettings>): ItchProvider {
+  /** cachedSecret caches per host object, so a write gets a fresh reader for the next call */
+  let secretHost: Pick<HostServices<PluginSettings>, 'secrets'> = { secrets: host.secrets };
+
+  function resetSecretCache(): void {
+    secretHost = { secrets: host.secrets };
+  }
 
   async function currentKey(): Promise<string | null> {
-    if (key === undefined) key = (await host.secrets.get(SECRET_KEY))?.trim() || null;
-    return key;
+    return (await cachedSecret(secretHost, SECRET_KEY))?.trim() || null;
   }
 
   async function requireKey(): Promise<string> {
@@ -176,7 +185,7 @@ export function createItchProvider(host: HostServices): ItchProvider {
 
   async function storeKey(value: string): Promise<void> {
     await host.secrets.set(SECRET_KEY, value);
-    key = value;
+    resetSecretCache();
     ownedCache = null;
   }
 
@@ -196,7 +205,7 @@ export function createItchProvider(host: HostServices): ItchProvider {
 
   async function clearCredential(): Promise<AuthState> {
     await host.secrets.delete(SECRET_KEY);
-    key = null;
+    resetSecretCache();
     ownedCache = null;
     return unconfigured();
   }
@@ -438,5 +447,3 @@ export function createItchProvider(host: HostServices): ItchProvider {
     listGames,
   };
 }
-
-export { parseItchRef as parseRef } from './library';
